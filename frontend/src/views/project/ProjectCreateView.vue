@@ -62,6 +62,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { createProject } from '@/services/api'
 
 const router = useRouter()
 const loading = ref(false)
@@ -92,8 +93,17 @@ function toggleTag(tag: string) {
 
 async function handleCreate() {
   loading.value = true
-  await new Promise(r => setTimeout(r, 1000))
-  loading.value = false
-  router.push('/projects')
+  try {
+    await createProject({
+      name: form.name,
+      study_type: form.studyType,
+      description: form.description
+    })
+    router.push('/projects')
+  } catch (error) {
+    console.error('Failed to create project:', error)
+  } finally {
+    loading.value = false
+  }
 }
 </script>

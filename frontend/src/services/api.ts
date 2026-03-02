@@ -86,4 +86,65 @@ export async function getTokenBalance(): Promise<{ balance: number }> {
     return res.data
 }
 
+// ========================
+// Dashboard API
+// ========================
+export async function getDashboardData() {
+    const res = await apiClient.get('/api/v1/dashboard')
+    return res.data
+}
+
+// ========================
+// Users API
+// ========================
+export async function getUserProfile() {
+    const res = await apiClient.get('/api/v1/users/profile')
+    return res.data
+}
+
+export async function updateUserProfile(data: any) {
+    const res = await apiClient.put('/api/v1/users/profile', data)
+    return res.data
+}
+
+export async function changePassword(data: any) {
+    const res = await apiClient.post('/api/v1/users/change-password', data)
+    return res.data
+}
+
+// ========================
+// Projects API
+// ========================
+export async function getProjects() {
+    const res = await apiClient.get('/api/v1/projects')
+    return res.data
+}
+
+export async function getProject(projectId: string) {
+    const res = await apiClient.get(`/api/v1/projects/${projectId}`)
+    return res.data
+}
+
+export async function createProject(data: any) {
+    const res = await apiClient.post('/api/v1/projects', data)
+    return res.data
+}
+
+// ========================
+// Datasets API
+// ========================
+export async function getDatasets(projectId: string) {
+    const res = await apiClient.get('/api/v1/datasets', { params: { project_id: projectId } })
+    return res.data
+}
+
+export async function uploadDataset(data: FormData) {
+    const res = await apiClient.post('/api/v1/datasets/upload', data, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+    return res.data
+}
+
 export default apiClient

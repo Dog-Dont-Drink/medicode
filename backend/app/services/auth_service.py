@@ -78,8 +78,10 @@ async def send_code(db: AsyncSession, email: str, purpose: str) -> dict:
     db.add(vc)
     await db.flush()
 
-    # Send email (async, best-effort)
-    await send_verification_email(email, code, purpose)
+    # Send email
+    email_sent = await send_verification_email(email, code, purpose)
+    if not email_sent:
+        raise BadRequest("验证码邮件发送失败，请检查系统邮件配置")
 
     return {"message": "验证码已发送", "expire_seconds": 600}
 

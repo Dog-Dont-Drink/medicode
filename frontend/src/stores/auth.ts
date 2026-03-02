@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import api from '@/services/api'
 
 interface User {
     id: string
@@ -50,19 +51,22 @@ export const useAuthStore = defineStore('auth', () => {
         pendingPurpose.value = null
     }
 
-    // 注册 —— 不再自动登录，而是发送验证码
-    async function register(name: string, email: string, password: string) {
+    // 注册 —— 先发送注册请求
+    async function register(name: string, email: string, password: string, code: string) {
         loading.value = true
         try {
-            // TODO: 替换为真实 API 调用
-            // const res = await apiClient.post('/api/v1/auth/register', { name, email, password })
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            const res = await api.post('/api/v1/auth/register', { name, email, password, code })
 
-            // 注册成功后设置待验证邮箱，不返回 token
-            setPendingVerification(email, 'register')
-            return { success: true, message: '验证码已发送到您的邮箱' }
-        } catch (error) {
-            return { success: false, error: '注册失败' }
+            // 如果后端直接返回 token，这里可以选择直接登录
+            if (res.data?.access_token) {
+                const { access_token, user: userData } = res.data
+                setUser(userData)
+                setToken(access_token)
+            }
+
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.response?.data?.detail || '注册失败' }
         } finally {
             loading.value = false
         }
@@ -72,28 +76,20 @@ export const useAuthStore = defineStore('auth', () => {
     async function login(email: string, password: string) {
         loading.value = true
         try {
-            // TODO: 替换为真实 API 调用
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            const res = await api.post('/api/v1/auth/login', { email, password })
 
-            // 模拟：如果邮箱未验证，返回需要验证的提示
-            // 真实场景下后端会返回 403 + needVerify
-            const mockUser: User = {
-                id: '1',
-                email,
-                name: email.split('@')[0],
-                role: 'user',
-                tokenBalance: 1500,
-            }
-            setUser(mockUser)
-            setToken('mock-jwt-token-' + Date.now())
+            const { access_token, user: userData } = res.data
+
+            setUser(userData)
+            setToken(access_token)
             return { success: true }
         } catch (error: any) {
             // 如果后端返回 403 + needVerify
-            if (error?.response?.status === 403 && error?.response?.data?.needVerify) {
+            if (error?.response?.data?.need_verify) {
                 setPendingVerification(email, 'register')
                 return { success: false, needVerify: true, error: '邮箱未验证，请先完成验证' }
             }
-            return { success: false, error: '登录失败' }
+            return { success: false, error: error.response?.data?.detail || '登录失败' }
         } finally {
             loading.value = false
         }
@@ -103,27 +99,11 @@ export const useAuthStore = defineStore('auth', () => {
     async function verifyCode(email: string, code: string, purpose: string) {
         loading.value = true
         try {
-            // TODO: 替换为真实 API 调用
-            // const res = await apiClient.post('/api/v1/auth/verify-code', { email, code, purpose })
-            await new Promise(resolve => setTimeout(resolve, 1000))
-
-            if (purpose === 'register') {
-                // 注册验证成功后自动登录
-                const mockUser: User = {
-                    id: '2',
-                    email,
-                    name: email.split('@')[0],
-                    role: 'user',
-                    tokenBalance: 100,
-                }
-                setUser(mockUser)
-                setToken('mock-jwt-token-' + Date.now())
-            }
-
+            await api.post('/api/v1/auth/verify-code', { email, code, purpose })
             clearPending()
             return { success: true }
-        } catch (error) {
-            return { success: false, error: '验证码错误或已过期' }
+        } catch (error: any) {
+            return { success: false, error: error.response?.data?.detail || '验证码错误或已过期' }
         } finally {
             loading.value = false
         }
@@ -132,12 +112,10 @@ export const useAuthStore = defineStore('auth', () => {
     // 发送/重发验证码
     async function sendCode(email: string, purpose: string) {
         try {
-            // TODO: 替换为真实 API 调用
-            // await apiClient.post('/api/v1/auth/send-code', { email, purpose })
-            await new Promise(resolve => setTimeout(resolve, 500))
-            return { success: true, message: '验证码已发送', expireSeconds: 600 }
-        } catch (error) {
-            return { success: false, error: '发送失败，请稍后重试' }
+            const res = await api.post('/api/v1/auth/send-code', { email, purpose })
+            return { success: true, message: '验证码已发送', expireSeconds: res.data.expire_seconds || 600 }
+        } catch (error: any) {
+            return { success: false, error: error.response?.data?.detail || '发送失败，请稍后重试' }
         }
     }
 
@@ -145,12 +123,11 @@ export const useAuthStore = defineStore('auth', () => {
     async function resetPassword(email: string, code: string, newPassword: string) {
         loading.value = true
         try {
-            // TODO: 替换为真实 API 调用
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            await api.post('/api/v1/auth/reset-password', { email, code, new_password: newPassword })
             clearPending()
             return { success: true }
-        } catch (error) {
-            return { success: false, error: '重置失败' }
+        } catch (error: any) {
+            return { success: false, error: error.response?.data?.detail || '重置密码失败' }
         } finally {
             loading.value = false
         }

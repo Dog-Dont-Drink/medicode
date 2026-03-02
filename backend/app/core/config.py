@@ -36,9 +36,9 @@ class Settings(BaseSettings):
 
     # SMTP
     SMTP_SERVER: str = "smtp.163.com"
-    SMTP_PORT: int = 993
+    SMTP_PORT: int = 465
     SMTP_USER: str = "medicode@163.com"
-    SMTP_PASSWORD: str = "CVBJKZHCWQBQEJKE"
+    SMTP_PASSWORD: str = "XWpprxpQrGiue9ui"
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]

@@ -242,10 +242,9 @@ async function handleRegister() {
   if (form.password !== form.confirmPassword) return
   if (!emailVerified.value) return
   loading.value = true
-  const result = await authStore.register(form.name, form.email, form.password)
+  const result = await authStore.register(form.name, form.email, form.password, fullCode.value)
   loading.value = false
   if (result.success) {
-    await authStore.verifyCode(form.email, fullCode.value, 'register')
     router.push('/dashboard')
   }
 }

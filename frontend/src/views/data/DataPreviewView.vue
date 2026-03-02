@@ -49,7 +49,7 @@
 <script setup lang="ts">
 const columns = ['patient_id', 'age', 'gender', 'bmi', 'hba1c', 'treatment', 'outcome', 'follow_up_months']
 
-const rows = Array.from({ length: 10 }, (_, i) => ({
+const rows: Record<string, any>[] = Array.from({ length: 10 }, (_, i) => ({
   patient_id: `P${String(1001 + i).padStart(4, '0')}`,
   age: Math.floor(Math.random() * 40 + 30),
   gender: Math.random() > 0.5 ? '男' : '女',

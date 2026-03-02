@@ -6,6 +6,14 @@
         <h1 class="text-2xl font-heading font-bold text-gray-900">数据管理</h1>
         <p class="text-sm text-gray-500 mt-1">上传、预览和管理您的研究数据</p>
       </div>
+      <!-- Project Selection -->
+      <div class="flex items-center gap-3">
+        <label class="text-sm text-gray-700">当前项目</label>
+        <select v-model="selectedProjectId" @change="loadDatasets" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[200px]" :disabled="isLoadingProjects">
+          <option value="">请选择项目...</option>
+          <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -25,13 +33,15 @@
             :class="['border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer', isDragging ? 'border-primary bg-primary-50' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50']"
             @click="triggerUpload"
           >
+            <!-- File input hidden under the drop zone -->
             <input ref="fileInput" type="file" class="hidden" accept=".csv,.xlsx,.xls,.sav,.dta" multiple @change="handleFiles" />
             <div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <svg v-if="isUploading" class="w-6 h-6 text-primary animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+              <svg v-else class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </div>
-            <p class="text-sm text-gray-600 font-medium">拖拽文件到此处</p>
-            <p class="text-xs text-gray-400 mt-1">或点击选择文件</p>
-            <p class="text-xs text-gray-300 mt-2">支持 CSV, Excel, SPSS, Stata</p>
+            <p class="text-sm text-gray-600 font-medium">{{ isUploading ? '正在上传中...' : '拖拽文件到此处' }}</p>
+            <p v-if="!isUploading" class="text-xs text-gray-400 mt-1">或点击选择文件</p>
+            <p class="text-xs text-gray-300 mt-2">选定项目后可上传数据集</p>
           </div>
 
           <!-- Uploaded files list -->
@@ -61,7 +71,7 @@
               {{ selectedFile ? selectedFile.name : '数据预览' }}
             </h3>
             <span class="text-xs text-gray-400" v-if="selectedFile">
-              {{ mockData.length }} 行 × {{ mockColumns.length }} 列
+              {{ selectedFile.row_count || '未知' }} 行 × {{ mockColumns.length }} 列 (预览仅显示前5行)
             </span>
           </div>
 
@@ -85,7 +95,7 @@
             <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
               <svg class="w-8 h-8 text-gray-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
             </div>
-            <p class="text-gray-400 text-sm">上传文件后点击"预览"查看数据</p>
+            <p class="text-gray-400 text-sm">左侧点击数据集"预览"查看数据</p>
           </div>
         </div>
       </div>
@@ -94,16 +104,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { getProjects, getDatasets, uploadDataset } from '@/services/api'
+
+const projects = ref<any[]>([])
+const selectedProjectId = ref('')
+const isLoadingProjects = ref(true)
 
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
-const selectedFile = ref<{ name: string; size: string } | null>(null)
+const selectedFile = ref<any>(null)
 
-const uploadedFiles = ref([
-  { name: 'patient_data_2024.csv', size: '2.3 MB' },
-  { name: 'lab_results.xlsx', size: '1.1 MB' },
-])
+const uploadedFiles = ref<any[]>([])
+const isUploading = ref(false)
+
+onMounted(async () => {
+  try {
+    projects.value = await getProjects()
+    if (projects.value.length > 0) {
+      selectedProjectId.value = projects.value[0].id
+      await loadDatasets()
+    }
+  } catch (err) {
+    console.error('Failed to load projects', err)
+  } finally {
+    isLoadingProjects.value = false
+  }
+})
+
+const loadDatasets = async () => {
+  if (!selectedProjectId.value) return
+  uploadedFiles.value = []
+  try {
+    const data = await getDatasets(selectedProjectId.value)
+    uploadedFiles.value = data.map((d: any) => ({
+      id: d.id,
+      name: d.filename,
+      size: formatFileSize(d.size_bytes),
+      row_count: d.row_count,
+    }))
+  } catch (err) {
+    console.error('Failed to load datasets', err)
+  }
+}
+
+function formatFileSize(bytes: number) {
+  if (!bytes) return '未知'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
 
 const mockColumns = ['patient_id', 'age', 'gender', 'bmi', 'blood_pressure', 'glucose', 'outcome']
 const mockData: Record<string, string | number>[] = [
@@ -118,29 +168,52 @@ const mockData: Record<string, string | number>[] = [
 ]
 
 function triggerUpload() {
+  if (!selectedProjectId.value) {
+    alert('请先在顶部选择一个项目')
+    return
+  }
   fileInput.value?.click()
 }
 
-function handleFiles(e: Event) {
+async function handleFiles(e: Event) {
   const target = e.target as HTMLInputElement
   if (target.files) {
-    Array.from(target.files).forEach(f => {
-      uploadedFiles.value.push({ name: f.name, size: (f.size / 1024 / 1024).toFixed(1) + ' MB' })
-    })
+    await processUploads(target.files)
   }
   isDragging.value = false
+  if (fileInput.value) fileInput.value.value = ''
 }
 
-function handleDrop(e: DragEvent) {
+async function handleDrop(e: DragEvent) {
   isDragging.value = false
+  if (!selectedProjectId.value) {
+    alert('请先在顶部选择一个项目')
+    return
+  }
   if (e.dataTransfer?.files) {
-    Array.from(e.dataTransfer.files).forEach(f => {
-      uploadedFiles.value.push({ name: f.name, size: (f.size / 1024 / 1024).toFixed(1) + ' MB' })
-    })
+    await processUploads(e.dataTransfer.files)
   }
 }
 
-function selectFile(file: { name: string; size: string }) {
+async function processUploads(files: FileList) {
+  isUploading.value = true
+  try {
+    for (let i = 0; i < files.length; i++) {
+        const formData = new FormData()
+        formData.append('file', files[i])
+        formData.append('project_id', selectedProjectId.value)
+        await uploadDataset(formData)
+    }
+    await loadDatasets()
+  } catch (error: any) {
+    console.error('Upload failed', error)
+    alert('上传失败: ' + (error.response?.data?.detail || error.message))
+  } finally {
+    isUploading.value = false
+  }
+}
+
+function selectFile(file: any) {
   selectedFile.value = file
 }
 </script>

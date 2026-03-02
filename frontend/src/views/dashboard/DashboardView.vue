@@ -147,102 +147,109 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { getDashboardData } from '@/services/api'
 
 const authStore = useAuthStore()
 
 const userName = computed(() => authStore.user?.name || '用户')
-const tokenBalance = computed(() => '1,500')
-const tokenUsed = computed(() => '500')
-const tokenTotal = computed(() => '2,000')
-const tokenUsagePercent = computed(() => 25)
 
-const stats = [
-  {
-    title: '活跃项目',
-    value: '12',
-    change: '+2',
-    changeUp: true,
-    changeColor: 'text-green-600',
+const dashboardData = ref<any>(null)
+const isLoading = ref(true)
+const dashboardError = ref('')
+
+const tokenBalance = computed(() => {
+  if (!dashboardData.value) return '0'
+  return dashboardData.value.token_balance.balance.toLocaleString()
+})
+const tokenUsed = computed(() => {
+  if (!dashboardData.value) return '0'
+  return dashboardData.value.token_balance.used_this_month.toLocaleString()
+})
+const tokenTotal = computed(() => {
+  if (!dashboardData.value) return '0'
+  // Using balance + used_this_month as an approximation of the total limit for display purposes if no plan limit is returned
+  return (dashboardData.value.token_balance.balance + dashboardData.value.token_balance.used_this_month).toLocaleString()
+})
+const tokenUsagePercent = computed(() => {
+  if (!dashboardData.value) return 0
+  const used = dashboardData.value.token_balance.used_this_month
+  const total = dashboardData.value.token_balance.balance + dashboardData.value.token_balance.used_this_month
+  if (total === 0) return 0
+  return Math.round((used / total) * 100)
+})
+
+onMounted(async () => {
+  try {
+    dashboardData.value = await getDashboardData()
+  } catch (e: any) {
+    dashboardError.value = '无法加载控制台数据: ' + (e.response?.data?.detail || e.message)
+    console.error(e)
+  } finally {
+    isLoading.value = false
+  }
+})
+
+const stats = computed(() => {
+  const data = dashboardData.value?.usage_stats || { active_projects: 0, total_datasets: 0, completed_analyses: 0 }
+  return [
+    {
+      title: '活跃项目',
+      value: data.active_projects.toString(),
+      change: '',
+      changeUp: true,
+      changeColor: 'text-green-600',
+      bgColor: 'bg-primary-50',
+      iconColor: 'text-primary',
+      iconPath: '<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>',
+    },
+    {
+      title: '操作数据集',
+      value: data.total_datasets.toString(),
+      change: '',
+      changeUp: true,
+      changeColor: 'text-green-600',
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-500',
+      iconPath: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+    },
+    {
+      title: '完成分析',
+      value: data.completed_analyses.toString(),
+      change: '',
+      changeUp: true,
+      changeColor: 'text-green-600',
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-500',
+      iconPath: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+    },
+    {
+      title: 'Token 余额',
+      value: tokenBalance.value.toString(),
+      change: '',
+      changeUp: false,
+      changeColor: 'text-amber-600',
+      bgColor: 'bg-green-50',
+      iconColor: 'text-green-500',
+      iconPath: '<circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 18V6"/>',
+    },
+  ]
+})
+
+const recentProjects = computed(() => {
+  if (!dashboardData.value) return []
+  return dashboardData.value.projects.map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description || '无描述',
+    status: p.status === 'active' ? '进行中' : '已完成',
+    statusClass: p.status === 'active' ? 'badge-primary' : 'badge-success',
+    updatedAt: new Date(p.updated_at).toLocaleDateString(),
     bgColor: 'bg-primary-50',
     iconColor: 'text-primary',
-    iconPath: '<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>',
-  },
-  {
-    title: '数据集',
-    value: '36',
-    change: '+5',
-    changeUp: true,
-    changeColor: 'text-green-600',
-    bgColor: 'bg-blue-50',
-    iconColor: 'text-blue-500',
-    iconPath: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
-  },
-  {
-    title: '分析任务',
-    value: '8',
-    change: '+3',
-    changeUp: true,
-    changeColor: 'text-green-600',
-    bgColor: 'bg-purple-50',
-    iconColor: 'text-purple-500',
-    iconPath: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
-  },
-  {
-    title: 'Token 余额',
-    value: '1,500',
-    change: '-120',
-    changeUp: false,
-    changeColor: 'text-amber-600',
-    bgColor: 'bg-green-50',
-    iconColor: 'text-green-500',
-    iconPath: '<circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 18V6"/>',
-  },
-]
-
-const recentProjects = [
-  {
-    id: '1',
-    name: '糖尿病患者预后分析',
-    description: '回顾性队列研究 · 2,450 样本',
-    status: '进行中',
-    statusClass: 'badge-primary',
-    updatedAt: '2小时前',
-    bgColor: 'bg-primary-50',
-    iconColor: 'text-primary',
-  },
-  {
-    id: '2',
-    name: '肺癌生存分析',
-    description: 'Cox回归 · KM曲线 · 1,200 样本',
-    status: '已完成',
-    statusClass: 'badge-success',
-    updatedAt: '昨天',
-    bgColor: 'bg-green-50',
-    iconColor: 'text-green-500',
-  },
-  {
-    id: '3',
-    name: '心血管风险预测模型',
-    description: 'Logistic回归 · ROC分析 · 5,600 样本',
-    status: '进行中',
-    statusClass: 'badge-primary',
-    updatedAt: '3天前',
-    bgColor: 'bg-blue-50',
-    iconColor: 'text-blue-500',
-  },
-  {
-    id: '4',
-    name: '临床试验数据清洗',
-    description: '缺失值处理 · 异常值检测 · 800 样本',
-    status: '待审核',
-    statusClass: 'badge-warning',
-    updatedAt: '1周前',
-    bgColor: 'bg-amber-50',
-    iconColor: 'text-amber-500',
-  },
-]
+  }))
+})
 
 const quickActions = [
   {

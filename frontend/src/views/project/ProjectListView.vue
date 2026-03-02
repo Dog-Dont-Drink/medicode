@@ -62,7 +62,7 @@
         @click="$router.push(`/projects/${project.id}`)"
       >
         <div class="flex items-start justify-between mb-3">
-          <div :class="['w-10 h-10 rounded-xl flex items-center justify-center', project.color]">
+          <div :class="['w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-primary to-primary-600']">
             <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
           </div>
           <span :class="['px-2.5 py-1 text-xs font-medium rounded-full', project.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500']">
@@ -74,13 +74,13 @@
         <div class="flex items-center gap-4 mt-4 pt-3 border-t border-gray-50 text-xs text-gray-400">
           <span class="flex items-center gap-1">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-            {{ project.dataCount }} 数据集
+            {{ project.dataset_count || 0 }} 数据集
           </span>
           <span class="flex items-center gap-1">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            {{ project.analysisCount }} 分析
+            {{ project.analysis_count || 0 }} 分析
           </span>
-          <span class="ml-auto">{{ project.updatedAt }}</span>
+          <span class="ml-auto">{{ new Date(project.updated_at).toLocaleDateString() }}</span>
         </div>
       </div>
     </div>
@@ -96,20 +96,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getProjects, createProject as apiCreateProject } from '@/services/api'
 
 const showCreatePanel = ref(false)
 const search = ref('')
 const filter = ref('全部')
 const newProject = ref({ name: '', type: '', description: '' })
 
-const projects = ref([
-  { id: 'p1', name: '糖尿病预后因素分析', description: '探讨2型糖尿病患者预后的关键影响因素与指标关系', status: 'active', color: 'bg-gradient-to-br from-primary to-primary-600', dataCount: 3, analysisCount: 5, updatedAt: '2小时前' },
-  { id: 'p2', name: '肺癌生存分析研究', description: '基于多中心临床数据的非小细胞肺癌生存预测模型构建', status: 'active', color: 'bg-gradient-to-br from-blue-500 to-blue-600', dataCount: 2, analysisCount: 8, updatedAt: '1天前' },
-  { id: 'p3', name: '心血管风险评估', description: '社区人群心血管疾病风险因素的横断面调查分析', status: 'completed', color: 'bg-gradient-to-br from-green-500 to-green-600', dataCount: 1, analysisCount: 3, updatedAt: '3天前' },
-  { id: 'p4', name: '药物临床试验 III 期', description: '新型降压药物疗效与安全性的随机对照双盲试验数据分析', status: 'active', color: 'bg-gradient-to-br from-purple-500 to-purple-600', dataCount: 4, analysisCount: 12, updatedAt: '5天前' },
-  { id: 'p5', name: '抗生素耐药性 Meta 分析', description: '全球范围内社区获得性肺炎抗生素耐药趋势的系统评价', status: 'completed', color: 'bg-gradient-to-br from-amber-500 to-amber-600', dataCount: 6, analysisCount: 4, updatedAt: '1周前' },
-])
+const projects = ref<any[]>([])
+
+const fetchProjects = async () => {
+  try {
+    projects.value = await getProjects()
+  } catch (error) {
+    console.error('Failed to fetch projects:', error)
+  }
+}
+
+onMounted(() => {
+  fetchProjects()
+})
 
 const filteredProjects = computed(() => {
   let list = projects.value
@@ -119,20 +126,24 @@ const filteredProjects = computed(() => {
   return list
 })
 
-function createProject() {
+async function createProject() {
   if (!newProject.value.name) return
-  projects.value.unshift({
-    id: 'p' + Date.now(),
-    name: newProject.value.name,
-    description: newProject.value.description || '暂无描述',
-    status: 'active',
-    color: 'bg-gradient-to-br from-primary to-primary-600',
-    dataCount: 0,
-    analysisCount: 0,
-    updatedAt: '刚刚',
-  })
-  newProject.value = { name: '', type: '', description: '' }
-  showCreatePanel.value = false
+  
+  try {
+    await apiCreateProject({
+      name: newProject.value.name,
+      study_type: newProject.value.type,
+      description: newProject.value.description
+    })
+    
+    // Refresh list after creation
+    await fetchProjects()
+    
+    newProject.value = { name: '', type: '', description: '' }
+    showCreatePanel.value = false
+  } catch (error) {
+    console.error('Failed to create project:', error)
+  }
 }
 </script>
 

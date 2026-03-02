@@ -133,26 +133,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { getUserProfile, updateUserProfile, changePassword as apiChangePassword } from '@/services/api'
 
 const authStore = useAuthStore()
 
 const saved = ref(false)
 
 const form = reactive({
-  name: '张医生',
-  email: 'zhangdoctor@hospital.com',
-  phone: '138 0000 1234',
-  title: 'associate',
-  institution: '北京协和医院',
-  researchField: '心血管流行病学',
-  bio: '副主任医师，从事心血管疾病流行病学研究十余年。',
+  name: '',
+  email: '',
+  phone: '',
+  title: '',
+  institution: '',
+  researchField: '',
+  bio: '',
 })
 
-function handleSave() {
-  saved.value = true
-  setTimeout(() => { saved.value = false }, 2000)
+onMounted(async () => {
+  try {
+    const profile = await getUserProfile()
+    Object.assign(form, {
+      name: profile.name || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      title: profile.title || '',
+      institution: profile.institution || '',
+      researchField: profile.research_field || '',
+      bio: profile.bio || '',
+    })
+  } catch (error) {
+    console.error('Failed to load profile:', error)
+  }
+})
+
+async function handleSave() {
+  try {
+    await updateUserProfile({
+      name: form.name,
+      phone: form.phone,
+      title: form.title,
+      institution: form.institution,
+      research_field: form.researchField,
+      bio: form.bio,
+    })
+    saved.value = true
+    setTimeout(() => { saved.value = false }, 2000)
+    
+    // Also update the store if name changed
+    if (authStore.user) {
+      authStore.user.name = form.name
+    }
+  } catch (error) {
+    console.error('Failed to save profile:', error)
+  }
 }
 
 // ====== 修改密码（需邮箱验证） ======
@@ -218,11 +253,21 @@ async function handleChangePassword() {
     return
   }
 
-  // TODO: 真实场景下调用 POST /api/v1/users/change-password
-  await new Promise(r => setTimeout(r, 500))
-  pwdLoading.value = false
-  pwdStep.value = 'done'
-  setTimeout(() => { pwdStep.value = 'idle' }, 3000)
+  // Real API call for POST /api/v1/users/change-password
+  try {
+    await apiChangePassword({
+      email: form.email,
+      code: pwdFullCode.value,
+      current_password: pwdForm.currentPassword,
+      new_password: pwdForm.newPassword
+    })
+    pwdLoading.value = false
+    pwdStep.value = 'done'
+    setTimeout(() => { pwdStep.value = 'idle' }, 3000)
+  } catch (error: any) {
+    pwdError.value = error.response?.data?.detail || '修改密码失败，请重试'
+    pwdLoading.value = false
+  }
 }
 
 function startPwdCooldown() {
