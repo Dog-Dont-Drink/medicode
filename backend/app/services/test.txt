@@ -16,15 +16,12 @@ from app.core.config import get_settings
 from app.services.alipay_service import run_precreate
 
 
-
-
-
 async def main() -> int:
     settings = get_settings()
     order_id = str(uuid.uuid4())
 
     print(json.dumps({
-        "sandbox": False,
+        "sandbox": settings.ALIPAY_SANDBOX,
         "app_id": settings.ALIPAY_APP_ID,
         "notify_url": settings.ALIPAY_NOTIFY_URL,
         "order_id": order_id,

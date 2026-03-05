@@ -53,13 +53,13 @@
           <div class="package-body">
             <h3 :class="['text-base font-semibold', activePackage === pkg.id ? 'text-white' : 'text-gray-900']">{{ pkg.name }}</h3>
             <div class="mt-3">
-              <span class="text-3xl font-heading font-bold" :class="activePackage === pkg.id ? 'text-white' : 'text-gray-900'">¥{{ pkg.price }}</span>
+              <span class="text-3xl font-heading font-bold" :class="activePackage === pkg.id ? 'text-white' : 'text-gray-900'">¥{{ TEST_ORDER_AMOUNT }}</span>
             </div>
             <div class="mt-2 space-y-1">
               <p :class="['text-sm', activePackage === pkg.id ? 'text-white/80' : 'text-gray-600']">
                 <span :class="['font-semibold', activePackage === pkg.id ? 'text-white' : 'text-gray-800']">{{ pkg.tokens }}</span> Token
               </p>
-              <p :class="['text-xs', activePackage === pkg.id ? 'text-white/60' : 'text-gray-400']">¥{{ pkg.unitPrice }}/Token</p>
+              <p :class="['text-xs', activePackage === pkg.id ? 'text-white/60' : 'text-gray-400']">¥{{ TEST_ORDER_AMOUNT }}/Token</p>
             </div>
 
             <!-- Features list -->
@@ -111,7 +111,7 @@
             <tr v-for="order in orders" :key="order.orderId">
               <td class="font-mono text-xs text-gray-400">{{ order.orderId.slice(0, 16) }}...</td>
               <td class="font-medium text-gray-800">{{ order.packageName }}</td>
-              <td class="font-semibold">¥{{ order.amount }}</td>
+              <td class="font-semibold">¥{{ TEST_ORDER_AMOUNT }}</td>
               <td class="text-primary font-semibold">+{{ order.tokens.toLocaleString() }}</td>
               <td>
                 <span :class="['order-status', `status-${order.status}`]">
@@ -158,6 +158,7 @@ const statusLabels: Record<string, string> = {
 // Payment dialog
 const paymentVisible = ref(false)
 const selectedPkg = ref<PaymentPackage | null>(null)
+const TEST_ORDER_AMOUNT = '0.01'
 
 function openPayment(pkg: PaymentPackage) {
   selectedPkg.value = pkg

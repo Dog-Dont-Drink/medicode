@@ -176,6 +176,8 @@ async function handleSendCode() {
     codeError.value = ''
     startCooldown()
     setTimeout(() => codeInputs.value[0]?.focus(), 100)
+  } else {
+    codeError.value = result.error || '验证码发送失败，请重试'
   }
 }
 

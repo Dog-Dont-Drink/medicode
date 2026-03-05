@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres.project-ref:password@aws-0-region.pooler.supabase.com:5432/postgres"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres.hjuszhymikglmamncdko:XkNJxaWJnjzY6dKZ@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT
     JWT_SECRET_KEY: str = "change-me-to-a-random-secret-key"
