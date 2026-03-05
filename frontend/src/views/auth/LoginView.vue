@@ -133,6 +133,10 @@ const loading = ref(false)
 const loginError = ref('')
 const needVerify = ref(false)
 
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 function goVerify() {
   router.push({ name: 'VerifyEmail', query: { email: form.email, purpose: 'register' } })
 }
@@ -147,13 +151,17 @@ async function handleLogin() {
     errors.email = '请输入邮箱地址'
     return
   }
+  if (!isValidEmail(form.email.trim())) {
+    errors.email = '请输入有效的邮箱地址'
+    return
+  }
   if (!form.password) {
     errors.password = '请输入密码'
     return
   }
 
   loading.value = true
-  const result = await authStore.login(form.email, form.password)
+  const result = await authStore.login(form.email.trim(), form.password)
   loading.value = false
 
   if (result.success) {

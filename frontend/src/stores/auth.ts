@@ -11,6 +11,57 @@ interface User {
     tokenBalance: number
 }
 
+interface BackendUser {
+    id: string
+    email: string
+    name: string
+    avatar_url?: string | null
+    avatar?: string | null
+    role?: 'user' | 'admin'
+    token_balance?: number
+    tokenBalance?: number
+}
+
+function normalizeAuthError(error: any, fallback: string) {
+    const detail = error?.response?.data?.detail
+
+    if (typeof detail === 'string' && detail.trim()) {
+        return detail
+    }
+
+    if (Array.isArray(detail) && detail.length > 0) {
+        const firstError = detail[0]
+        const locations = Array.isArray(firstError?.loc) ? firstError.loc : []
+        const message = typeof firstError?.msg === 'string' ? firstError.msg : ''
+
+        if (locations.includes('email')) {
+            return '请输入有效的邮箱地址'
+        }
+        if (locations.includes('password') || locations.includes('new_password')) {
+            return '请输入正确格式的密码'
+        }
+        if (locations.includes('code')) {
+            return '请输入正确的验证码'
+        }
+        if (message) {
+            return message
+        }
+    }
+
+    return fallback
+}
+
+function normalizeUser(userData: BackendUser): User {
+    return {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        avatar: userData.avatar_url || userData.avatar || '',
+        role: userData.role || 'user',
+        tokenBalance: userData.token_balance ?? userData.tokenBalance ?? 0,
+    }
+}
+
 export const useAuthStore = defineStore('auth', () => {
     const user = ref<User | null>(null)
     const token = ref<string | null>(localStorage.getItem('auth_token'))
@@ -23,8 +74,8 @@ export const useAuthStore = defineStore('auth', () => {
     const isAuthenticated = computed(() => !!token.value)
     const isAdmin = computed(() => user.value?.role === 'admin')
 
-    function setUser(userData: User) {
-        user.value = userData
+    function setUser(userData: BackendUser) {
+        user.value = normalizeUser(userData)
     }
 
     function setToken(newToken: string) {
@@ -51,6 +102,20 @@ export const useAuthStore = defineStore('auth', () => {
         pendingPurpose.value = null
     }
 
+    async function loadProfile() {
+        if (!token.value) {
+            return null
+        }
+
+        try {
+            const res = await api.get('/api/v1/users/profile')
+            setUser(res.data)
+            return user.value
+        } catch {
+            return null
+        }
+    }
+
     // 注册 —— 先发送注册请求
     async function register(name: string, email: string, password: string, code: string) {
         loading.value = true
@@ -66,7 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
 
             return { success: true }
         } catch (error: any) {
-            return { success: false, error: error.response?.data?.detail || '注册失败' }
+            return { success: false, error: normalizeAuthError(error, '注册失败') }
         } finally {
             loading.value = false
         }
@@ -89,7 +154,7 @@ export const useAuthStore = defineStore('auth', () => {
                 setPendingVerification(email, 'register')
                 return { success: false, needVerify: true, error: '邮箱未验证，请先完成验证' }
             }
-            return { success: false, error: error.response?.data?.detail || '登录失败' }
+            return { success: false, error: normalizeAuthError(error, '登录失败，请检查邮箱和密码') }
         } finally {
             loading.value = false
         }
@@ -103,7 +168,7 @@ export const useAuthStore = defineStore('auth', () => {
             clearPending()
             return { success: true }
         } catch (error: any) {
-            return { success: false, error: error.response?.data?.detail || '验证码错误或已过期' }
+            return { success: false, error: normalizeAuthError(error, '验证码错误或已过期') }
         } finally {
             loading.value = false
         }
@@ -115,7 +180,7 @@ export const useAuthStore = defineStore('auth', () => {
             const res = await api.post('/api/v1/auth/send-code', { email, purpose })
             return { success: true, message: '验证码已发送', expireSeconds: res.data.expire_seconds || 600 }
         } catch (error: any) {
-            return { success: false, error: error.response?.data?.detail || '发送失败，请稍后重试' }
+            return { success: false, error: normalizeAuthError(error, '发送失败，请稍后重试') }
         }
     }
 
@@ -127,7 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
             clearPending()
             return { success: true }
         } catch (error: any) {
-            return { success: false, error: error.response?.data?.detail || '重置密码失败' }
+            return { success: false, error: normalizeAuthError(error, '重置密码失败') }
         } finally {
             loading.value = false
         }
@@ -138,6 +203,7 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated, isAdmin,
         login, register, logout,
         setUser, setToken,
+        loadProfile,
         setPendingVerification, clearPending,
         verifyCode, sendCode, resetPassword,
     }

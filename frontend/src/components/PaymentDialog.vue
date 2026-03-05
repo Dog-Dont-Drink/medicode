@@ -161,7 +161,7 @@ interface PackageInfo {
   id: string
   name: string
   price: number
-  tokens: string
+  tokens: number
   unitPrice: string
 }
 
@@ -172,7 +172,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
-  (e: 'success', data: { orderId: string; tokens: string }): void
+  (e: 'success', data: { orderId: string; tokens: number }): void
 }>()
 
 type Step = 'confirm' | 'qrcode' | 'success' | 'failed'
@@ -213,9 +213,6 @@ async function handleCreateOrder() {
   try {
     const res = await createPayment({
       packageId: props.pkg.id,
-      packageName: props.pkg.name,
-      price: props.pkg.price,
-      tokens: parseInt(props.pkg.tokens.replace(/,/g, '')),
     })
 
     orderId.value = res.orderId
@@ -237,37 +234,9 @@ async function handleCreateOrder() {
     console.error('Payment creation failed:', err)
     qrLoading.value = false
 
-    // If backend is not available, use mock mode
-    if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
-      await useMockMode()
-    } else {
-      qrError.value = true
-      errorMessage.value = err.response?.data?.message || '创建订单失败，请稍后重试'
-    }
+    qrError.value = true
+    errorMessage.value = err.response?.data?.detail || err.response?.data?.message || '创建订单失败，请稍后重试'
   }
-}
-
-async function useMockMode() {
-  // Generate a mock order for demo/development
-  const mockOrderId = 'MOCK' + Date.now().toString(36).toUpperCase()
-  orderId.value = mockOrderId
-
-  await nextTick()
-  if (qrCanvas.value) {
-    await QRCode.toCanvas(qrCanvas.value, `https://qr.alipay.com/mock_${mockOrderId}`, {
-      width: 220,
-      margin: 2,
-      color: { dark: '#1a1a2e', light: '#ffffff' },
-    })
-  }
-  qrLoading.value = false
-
-  // Mock: auto-complete payment after 8 seconds
-  pollTimer = setInterval(() => {}, 3000) // placeholder
-  pollTimeout = setTimeout(() => {
-    stopPolling()
-    step.value = 'success'
-  }, 8000)
 }
 
 function startPolling() {
@@ -306,7 +275,7 @@ function stopPolling() {
 }
 
 function handleDone() {
-  emit('success', { orderId: orderId.value, tokens: props.pkg?.tokens || '0' })
+  emit('success', { orderId: orderId.value, tokens: props.pkg?.tokens || 0 })
   handleClose()
 }
 

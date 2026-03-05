@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 import aiosmtplib
+from aiosmtplib import SMTPAuthenticationError
 
 from app.core.config import get_settings
 
@@ -12,8 +13,40 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+def _validate_smtp_settings() -> None:
+    placeholders = {"your_password", "noreply@your-domain.com", "your-domain.com"}
+    if (
+        not settings.SMTP_SERVER
+        or not settings.SMTP_USER
+        or not settings.SMTP_PASSWORD
+        or settings.SMTP_USER in placeholders
+        or settings.SMTP_PASSWORD in placeholders
+        or "your-domain.com" in settings.SMTP_USER
+    ):
+        raise RuntimeError(
+            "SMTP 配置未完成。请在 backend/.env 中设置真实的 SMTP_SERVER、SMTP_USER、SMTP_PASSWORD。"
+        )
+
+
+def _smtp_transport_options() -> dict:
+    use_tls = settings.SMTP_USE_TLS
+    start_tls = settings.SMTP_START_TLS
+
+    # If the user did not override transport mode, infer a safe default from the port.
+    if settings.SMTP_PORT == 465 and not start_tls:
+        use_tls = True
+    elif settings.SMTP_PORT in (587, 25) and not use_tls:
+        start_tls = True
+
+    return {
+        "use_tls": use_tls,
+        "start_tls": start_tls,
+    }
+
+
 async def send_verification_email(to_email: str, code: str, purpose: str) -> bool:
     """Send a verification code email.  Returns True on success."""
+    _validate_smtp_settings()
 
     subject_map = {
         "register": "MediCode — 邮箱注册验证码",
@@ -52,16 +85,30 @@ async def send_verification_email(to_email: str, code: str, purpose: str) -> boo
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:
+        transport_options = _smtp_transport_options()
         await aiosmtplib.send(
             msg,
             hostname=settings.SMTP_SERVER,
             port=settings.SMTP_PORT,
             username=settings.SMTP_USER,
             password=settings.SMTP_PASSWORD,
-            use_tls=True,
+            timeout=20,
+            **transport_options,
         )
         logger.info("Verification email sent to %s (purpose=%s)", to_email, purpose)
         return True
+    except SMTPAuthenticationError as e:
+        logger.error(
+            "SMTP authentication failed for %s via %s:%s: %s",
+            settings.SMTP_USER,
+            settings.SMTP_SERVER,
+            settings.SMTP_PORT,
+            e,
+        )
+        logger.error(
+            "Check backend/.env SMTP settings. For QQ enterprise mail usually use port 465 with a valid mailbox password or app password."
+        )
+        return False
     except Exception as e:
         logger.error("Failed to send email to %s: %s", to_email, e)
         return False

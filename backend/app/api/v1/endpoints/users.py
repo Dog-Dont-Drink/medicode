@@ -1,9 +1,13 @@
 """User API endpoints."""
 
-from fastapi import APIRouter, Depends
+import os
+import uuid
+
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core.exceptions import BadRequest
 from app.db.database import get_db
 from app.db.models.user import User
 from app.schemas.user import (
@@ -13,8 +17,12 @@ from app.schemas.user import (
     UserProfile,
 )
 from app.services import user_service
+from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/users", tags=["用户"])
+
+ALLOWED_AVATAR_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_AVATAR_SIZE = 2 * 1024 * 1024
 
 
 @router.get("/profile", response_model=UserProfile)
@@ -45,6 +53,63 @@ async def update_profile(
     updated = await user_service.update_profile(
         db, str(current_user.id), body.model_dump(exclude_unset=True)
     )
+    return UserProfile(
+        id=str(updated.id),
+        name=updated.name,
+        email=updated.email,
+        phone=updated.phone,
+        title=updated.title,
+        institution=updated.institution,
+        research_field=updated.research_field,
+        bio=updated.bio,
+        avatar_url=updated.avatar_url,
+        token_balance=updated.token_balance,
+        subscription=updated.subscription,
+    )
+
+
+@router.post("/avatar", response_model=UserProfile)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """上传用户头像"""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_AVATAR_EXTENSIONS:
+        raise BadRequest("头像仅支持 JPG、PNG 或 WEBP 格式")
+
+    content = await file.read()
+    if not content:
+        raise BadRequest("请选择要上传的头像文件")
+    if len(content) > MAX_AVATAR_SIZE:
+        raise BadRequest("头像大小不能超过 2MB")
+
+    object_key = f"avatars/{current_user.id}/{uuid.uuid4()}{ext}"
+    content_type = file.content_type or "application/octet-stream"
+
+    await storage_service.upload(
+        object_key=object_key,
+        content=content,
+        content_type=content_type,
+    )
+
+    old_object_key = storage_service.extract_object_key(current_user.avatar_url or "")
+    public_url = await storage_service.get_public_url(object_key)
+
+    try:
+        updated = await user_service.update_profile(
+            db,
+            str(current_user.id),
+            {"avatar_url": public_url},
+        )
+    except Exception:
+        await storage_service.delete(object_key)
+        raise
+
+    if old_object_key and old_object_key != object_key:
+        await storage_service.delete(old_object_key)
+
     return UserProfile(
         id=str(updated.id),
         name=updated.name,

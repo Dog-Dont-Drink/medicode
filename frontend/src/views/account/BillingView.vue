@@ -137,73 +137,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import PaymentDialog from '@/components/PaymentDialog.vue'
-import type { OrderRecord } from '@/services/api'
+import { getOrderHistory, getPaymentPackages, getTokenBalance, type OrderRecord, type PaymentPackage } from '@/services/api'
 
-interface Package {
-  id: string
-  name: string
-  price: number
-  tokens: string
-  unitPrice: string
-  badge: string
-  features: string[]
-}
+const tokenBalance = ref(0)
+const currentPlan = ref('free')
+const usedThisMonth = ref(0)
+const activePackage = ref('')
 
-const tokenBalance = ref(1250)
-const currentPlan = ref('专业版')
-const usedThisMonth = ref(380)
-const activePackage = ref('pro')
+const packages = ref<PaymentPackage[]>([])
 
-const packages = ref<Package[]>([
-  {
-    id: 'basic',
-    name: '基础包',
-    price: 49,
-    tokens: '500',
-    unitPrice: '0.098',
-    badge: '',
-    features: ['描述统计分析', '基础图表生成', 'CSV/Excel 格式', '邮件支持'],
-  },
-  {
-    id: 'pro',
-    name: '专业包',
-    price: 199,
-    tokens: '2,500',
-    unitPrice: '0.080',
-    badge: '最受欢迎',
-    features: ['全部分析方法', '可复现 R 脚本', '专业报告导出', '优先技术支持'],
-  },
-  {
-    id: 'enterprise',
-    name: '企业包',
-    price: 499,
-    tokens: '8,000',
-    unitPrice: '0.062',
-    badge: '',
-    features: ['无限分析方法', '定制分析模块', 'API 集成接口', '专属技术顾问'],
-  },
-])
-
-const orders = ref<OrderRecord[]>([
-  {
-    orderId: 'ORD20260301143200A1B2C3',
-    packageName: '专业包',
-    amount: 199,
-    tokens: 2500,
-    status: 'paid',
-    createdAt: '2026-02-28T14:32:00Z',
-    paidAt: '2026-02-28T14:33:12Z',
-  },
-  {
-    orderId: 'ORD20260215101500D4E5F6',
-    packageName: '基础包',
-    amount: 49,
-    tokens: 500,
-    status: 'paid',
-    createdAt: '2026-02-15T10:15:00Z',
-    paidAt: '2026-02-15T10:16:45Z',
-  },
-])
+const orders = ref<OrderRecord[]>([])
 
 const statusLabels: Record<string, string> = {
   pending: '待支付',
@@ -214,33 +157,50 @@ const statusLabels: Record<string, string> = {
 
 // Payment dialog
 const paymentVisible = ref(false)
-const selectedPkg = ref<Package | null>(null)
+const selectedPkg = ref<PaymentPackage | null>(null)
 
-function openPayment(pkg: Package) {
+function openPayment(pkg: PaymentPackage) {
   selectedPkg.value = pkg
   paymentVisible.value = true
 }
 
-function onPaymentSuccess(data: { orderId: string; tokens: string }) {
-  // Add to order history
-  const tokensNum = parseInt(data.tokens.replace(/,/g, ''))
-  orders.value.unshift({
-    orderId: data.orderId,
-    packageName: selectedPkg.value?.name || '',
-    amount: selectedPkg.value?.price || 0,
-    tokens: tokensNum,
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-    paidAt: new Date().toISOString(),
-  })
-  // Update balance
-  tokenBalance.value += tokensNum
+async function loadBillingData() {
+  const [balance, history] = await Promise.all([
+    getTokenBalance(),
+    getOrderHistory(),
+  ])
+  tokenBalance.value = balance.balance
+  currentPlan.value = balance.plan
+  usedThisMonth.value = balance.used_this_month
+  orders.value = history
+}
+
+async function loadPackageList() {
+  const packageList = await getPaymentPackages()
+  packages.value = packageList
+  if (!activePackage.value && packageList.length > 0) {
+    activePackage.value = packageList.find((pkg) => pkg.badge)?.id || packageList[0].id
+  }
+}
+
+async function onPaymentSuccess(_: { orderId: string; tokens: number }) {
+  await loadBillingData()
 }
 
 function formatTime(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+onMounted(() => {
+  // Load package cards independently so they are not blocked by slower balance/order requests.
+  void loadPackageList().catch((err) => {
+    console.error('Failed to load payment packages:', err)
+  })
+  void loadBillingData().catch((err) => {
+    console.error('Failed to load billing data:', err)
+  })
+})
 </script>
 
 <style scoped>

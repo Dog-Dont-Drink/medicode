@@ -2,7 +2,7 @@
 
 import os
 import uuid
-from pathlib import Path
+from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy import select
@@ -15,10 +15,10 @@ from app.db.models.dataset import Dataset
 from app.db.models.project import Project
 from app.db.models.user import User
 from app.schemas.dataset import DatasetResponse
+from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/datasets", tags=["数据集"])
 
-UPLOAD_DIR = Path("uploads")
 ALLOWED_EXTENSIONS = {".csv", ".xlsx", ".xls", ".sav", ".dta"}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
@@ -48,23 +48,28 @@ async def upload_dataset(
     if len(content) > MAX_FILE_SIZE:
         raise BadRequest("文件大小不能超过 50MB")
 
-    # Save to local filesystem (will be replaced by object storage later)
     file_id = uuid.uuid4()
-    rel_path = f"{current_user.id}/{project_id}/{file_id}{ext}"
-    full_path = UPLOAD_DIR / rel_path
-    full_path.parent.mkdir(parents=True, exist_ok=True)
-    full_path.write_bytes(content)
+    object_key = f"{current_user.id}/{project_id}/{file_id}{ext}"
+    await storage_service.upload(
+        object_key=object_key,
+        content=content,
+        content_type=file.content_type or "application/octet-stream",
+    )
 
     dataset = Dataset(
         project_id=uuid.UUID(project_id),
         name=file.filename or "unnamed",
-        file_path=str(rel_path),
+        file_path=object_key,
         file_size=len(content),
         file_format=ext.lstrip("."),
         uploaded_by=current_user.id,
     )
-    db.add(dataset)
-    await db.flush()
+    try:
+        db.add(dataset)
+        await db.flush()
+    except Exception:
+        await storage_service.delete(object_key)
+        raise
 
     return DatasetResponse(
         id=str(dataset.id),
@@ -77,7 +82,7 @@ async def upload_dataset(
     )
 
 
-@router.get("", response_model=list[DatasetResponse])
+@router.get("", response_model=List[DatasetResponse])
 async def list_datasets(
     project_id: str,
     current_user: User = Depends(get_current_user),
@@ -122,10 +127,7 @@ async def delete_dataset(
     if not project or project.owner_id != current_user.id:
         raise Forbidden("无权操作")
 
-    # Delete file
-    file_path = UPLOAD_DIR / dataset.file_path
-    if file_path.exists():
-        file_path.unlink()
+    await storage_service.delete(dataset.file_path)
 
     await db.delete(dataset)
     await db.flush()

@@ -25,9 +25,6 @@ apiClient.interceptors.request.use((config) => {
 
 export interface PaymentCreateRequest {
     packageId: string
-    packageName: string
-    price: number
-    tokens: number
 }
 
 export interface PaymentCreateResponse {
@@ -54,11 +51,32 @@ export interface OrderRecord {
     paidAt?: string
 }
 
+export interface PaymentPackage {
+    id: string
+    name: string
+    price: number
+    tokens: number
+    unitPrice: string
+    badge: string
+    features: string[]
+}
+
+export interface TokenBalanceResponse {
+    balance: number
+    plan: string
+    used_this_month: number
+}
+
 /**
  * Create a payment order (calls alipay.trade.precreate on backend)
  */
 export async function createPayment(data: PaymentCreateRequest): Promise<PaymentCreateResponse> {
     const res = await apiClient.post('/api/v1/payment/precreate', data)
+    return res.data
+}
+
+export async function getPaymentPackages(): Promise<PaymentPackage[]> {
+    const res = await apiClient.get('/api/v1/payment/packages')
     return res.data
 }
 
@@ -81,7 +99,7 @@ export async function getOrderHistory(): Promise<OrderRecord[]> {
 /**
  * Get current token balance
  */
-export async function getTokenBalance(): Promise<{ balance: number }> {
+export async function getTokenBalance(): Promise<TokenBalanceResponse> {
     const res = await apiClient.get('/api/v1/users/balance')
     return res.data
 }
@@ -104,6 +122,15 @@ export async function getUserProfile() {
 
 export async function updateUserProfile(data: any) {
     const res = await apiClient.put('/api/v1/users/profile', data)
+    return res.data
+}
+
+export async function uploadAvatar(data: FormData) {
+    const res = await apiClient.post('/api/v1/users/avatar', data, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
     return res.data
 }
 

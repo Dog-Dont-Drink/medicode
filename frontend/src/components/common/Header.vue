@@ -63,8 +63,9 @@
             @click="showUserMenu = !showUserMenu"
             class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
           >
-            <div class="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-              <span class="text-sm font-semibold text-white">{{ userInitial }}</span>
+            <div class="w-8 h-8 overflow-hidden bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
+              <img v-if="avatarUrl" :src="avatarUrl" alt="头像" class="w-full h-full object-cover" />
+              <span v-else class="text-sm font-semibold text-white">{{ userInitial }}</span>
             </div>
             <svg class="w-4 h-4 text-gray-400 hidden sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"/>
@@ -127,6 +128,7 @@ const userMenuRef = ref<HTMLElement | null>(null)
 const userName = computed(() => authStore.user?.name || '用户')
 const userEmail = computed(() => authStore.user?.email || 'user@medicode.com')
 const userInitial = computed(() => (authStore.user?.name?.[0] || 'U').toUpperCase())
+const avatarUrl = computed(() => authStore.user?.avatar || '')
 const tokenBalance = computed(() => authStore.user?.tokenBalance?.toLocaleString() || '0')
 
 function handleLogout() {
@@ -141,6 +143,11 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
+onMounted(() => {
+  if (authStore.token && !authStore.user) {
+    authStore.loadProfile()
+  }
+  document.addEventListener('click', handleClickOutside)
+})
 onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 </script>

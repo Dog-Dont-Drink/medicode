@@ -85,8 +85,8 @@
         </svg>
       </div>
       <h2 class="text-lg font-semibold text-gray-900">密码重置成功</h2>
-      <p class="text-sm text-gray-500">请使用新密码登录</p>
-      <router-link to="/auth/login" class="btn-primary inline-block px-6 py-2.5 cursor-pointer">去登录</router-link>
+      <p class="text-sm text-gray-500">正在为您登录并跳转到控制台...</p>
+      <button @click="goDashboard" class="btn-primary inline-block px-6 py-2.5 cursor-pointer">立即进入控制台</button>
     </div>
 
     <!-- Back link -->
@@ -121,6 +121,7 @@ const codeInputs = ref<HTMLInputElement[]>([])
 const fullCode = computed(() => codeDigits.value.join(''))
 const cooldown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+let redirectTimer: ReturnType<typeof setTimeout> | null = null
 
 const stepTitle = computed(() => {
   if (step.value === 'email') return '忘记密码'
@@ -183,11 +184,31 @@ async function handleVerifyCode() {
 async function handleResetPassword() {
   if (form.newPassword !== form.confirmPassword) return
   loading.value = true
+  error.value = ''
   const result = await authStore.resetPassword(form.email, fullCode.value, form.newPassword)
-  loading.value = false
   if (result.success) {
-    step.value = 'done'
+    const loginResult = await authStore.login(form.email, form.newPassword)
+    loading.value = false
+
+    if (loginResult.success) {
+      step.value = 'done'
+      redirectTimer = setTimeout(() => {
+        router.push('/dashboard')
+      }, 1200)
+      return
+    }
+
+    error.value = loginResult.error || '自动登录失败，请手动登录'
+    router.push({ name: 'Login', query: { email: form.email } })
+    return
   }
+
+  loading.value = false
+  error.value = result.error || '重置密码失败'
+}
+
+function goDashboard() {
+  router.push('/dashboard')
 }
 
 function resendCode() {
@@ -211,5 +232,8 @@ onMounted(() => {
   }
 })
 
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+  if (redirectTimer) clearTimeout(redirectTimer)
+})
 </script>

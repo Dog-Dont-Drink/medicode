@@ -5,12 +5,28 @@
 
     <!-- Avatar -->
     <div class="mt-8 flex items-center gap-5">
-      <div class="w-20 h-20 bg-gradient-to-br from-primary to-primary-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-sm">
-        {{ form.name ? form.name[0].toUpperCase() : 'U' }}
+      <div class="w-20 h-20 overflow-hidden bg-gradient-to-br from-primary to-primary-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-sm">
+        <img v-if="avatarPreview" :src="avatarPreview" alt="头像" class="w-full h-full object-cover" />
+        <span v-else>{{ form.name ? form.name[0].toUpperCase() : 'U' }}</span>
       </div>
       <div>
-        <button class="px-4 py-2 text-sm font-medium text-primary bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors cursor-pointer">更换头像</button>
+        <input
+          ref="avatarInput"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          class="hidden"
+          @change="handleAvatarChange"
+        />
+        <button
+          type="button"
+          @click="openAvatarPicker"
+          :disabled="avatarUploading"
+          class="px-4 py-2 text-sm font-medium text-primary bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {{ avatarUploading ? '上传中...' : '更换头像' }}
+        </button>
         <p class="text-xs text-gray-400 mt-1.5">JPG, PNG 格式，≤ 2MB</p>
+        <p v-if="avatarError" class="text-xs text-danger mt-1.5">{{ avatarError }}</p>
       </div>
     </div>
 
@@ -23,7 +39,8 @@
         </div>
         <div>
           <label class="form-label">邮箱</label>
-          <input v-model="form.email" type="email" class="form-input" placeholder="your@email.com" />
+          <input v-model="form.email" type="email" class="form-input bg-gray-50 text-gray-500 cursor-not-allowed" placeholder="your@email.com" disabled />
+          <p class="text-xs text-gray-400 mt-1.5">邮箱暂不支持在此页面修改</p>
         </div>
         <div>
           <label class="form-label">手机号码</label>
@@ -60,12 +77,13 @@
 
       <!-- Save -->
       <div class="flex items-center gap-3 pt-2">
-        <button type="submit" class="btn-primary cursor-pointer">
+        <button type="submit" :disabled="saving" class="btn-primary cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          保存修改
+          {{ saving ? '保存中...' : '保存修改' }}
         </button>
         <span v-if="saved" class="text-sm text-green-500 animate-fade-in">已保存</span>
       </div>
+      <p v-if="saveError" class="text-sm text-danger">{{ saveError }}</p>
     </form>
 
     <!-- 修改密码区域 -->
@@ -135,11 +153,17 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { getUserProfile, updateUserProfile, changePassword as apiChangePassword } from '@/services/api'
+import { getUserProfile, updateUserProfile, uploadAvatar, changePassword as apiChangePassword } from '@/services/api'
 
 const authStore = useAuthStore()
 
 const saved = ref(false)
+const saving = ref(false)
+const saveError = ref('')
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarPreview = ref('')
+const avatarUploading = ref(false)
+const avatarError = ref('')
 
 const form = reactive({
   name: '',
@@ -163,14 +187,58 @@ onMounted(async () => {
       researchField: profile.research_field || '',
       bio: profile.bio || '',
     })
+    avatarPreview.value = profile.avatar_url || ''
   } catch (error) {
     console.error('Failed to load profile:', error)
   }
 })
 
-async function handleSave() {
+function openAvatarPicker() {
+  avatarInput.value?.click()
+}
+
+async function handleAvatarChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  avatarError.value = ''
+
+  if (!file) return
+
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+  if (!allowedTypes.has(file.type)) {
+    avatarError.value = '头像仅支持 JPG、PNG 或 WEBP 格式'
+    input.value = ''
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    avatarError.value = '头像大小不能超过 2MB'
+    input.value = ''
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  avatarUploading.value = true
   try {
-    await updateUserProfile({
+    const profile = await uploadAvatar(formData)
+    avatarPreview.value = profile.avatar_url || ''
+    if (authStore.user) {
+      authStore.user.avatar = profile.avatar_url || ''
+    }
+  } catch (error: any) {
+    avatarError.value = error?.response?.data?.detail || '头像上传失败，请稍后重试'
+  } finally {
+    avatarUploading.value = false
+    input.value = ''
+  }
+}
+
+async function handleSave() {
+  saving.value = true
+  saveError.value = ''
+  try {
+    const profile = await updateUserProfile({
       name: form.name,
       phone: form.phone,
       title: form.title,
@@ -178,15 +246,27 @@ async function handleSave() {
       research_field: form.researchField,
       bio: form.bio,
     })
+
+    Object.assign(form, {
+      name: profile.name || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      title: profile.title || '',
+      institution: profile.institution || '',
+      researchField: profile.research_field || '',
+      bio: profile.bio || '',
+    })
+    avatarPreview.value = profile.avatar_url || avatarPreview.value
+
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
     
-    // Also update the store if name changed
-    if (authStore.user) {
-      authStore.user.name = form.name
-    }
-  } catch (error) {
+    authStore.setUser(profile)
+  } catch (error: any) {
+    saveError.value = error?.response?.data?.detail || '保存失败，请稍后重试'
     console.error('Failed to save profile:', error)
+  } finally {
+    saving.value = false
   }
 }
 

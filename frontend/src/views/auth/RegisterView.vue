@@ -1,14 +1,14 @@
 <template>
   <div class="animate-fade-in">
     <div class="text-center mb-5">
-      <h1 class="text-xl font-heading font-bold text-gray-900">创建账户</h1>
+      <h1 class="text-xl font-heading font-bold text-gray-900">创 建 账 户</h1>
       <p class="text-gray-400 text-xs mt-1">注册即可开始使用 MediCode</p>
     </div>
 
     <form @submit.prevent="handleRegister" class="space-y-3.5">
       <!-- Name -->
       <div>
-        <label for="reg-name" class="reg-label">姓名</label>
+        <label for="reg-name" class="reg-label">用户名</label>
         <input id="reg-name" v-model="form.name" type="text" required placeholder="请输入姓名" class="reg-input" />
       </div>
 

@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime, timezone
+from typing import List
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -24,7 +25,7 @@ from app.schemas.project import (
 router = APIRouter(prefix="/projects", tags=["项目"])
 
 
-@router.get("", response_model=list[ProjectListItem])
+@router.get("", response_model=List[ProjectListItem])
 async def list_projects(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

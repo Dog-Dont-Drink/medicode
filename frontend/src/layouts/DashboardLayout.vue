@@ -25,8 +25,9 @@
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
             <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full"></span>
           </button>
-          <div class="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center text-white text-sm font-semibold cursor-pointer">
-            {{ userInitial }}
+          <div class="w-8 h-8 overflow-hidden bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center text-white text-sm font-semibold cursor-pointer">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="头像" class="w-full h-full object-cover" />
+            <span v-else>{{ userInitial }}</span>
           </div>
           <button @click="handleLogout" class="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 text-xs font-medium transition-all cursor-pointer" title="退出登录">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -46,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Sidebar from '@/components/common/Sidebar.vue'
 import NotificationToast from '@/components/common/NotificationToast.vue'
@@ -56,6 +57,13 @@ const router = useRouter()
 const sidebarOpen = ref(false)
 const authStore = useAuthStore()
 const userInitial = computed(() => (authStore.user?.name?.[0] || 'U').toUpperCase())
+const avatarUrl = computed(() => authStore.user?.avatar || '')
+
+onMounted(() => {
+  if (authStore.token && !authStore.user) {
+    authStore.loadProfile()
+  }
+})
 
 function handleLogout() {
   authStore.logout()

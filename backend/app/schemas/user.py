@@ -27,6 +27,7 @@ class UpdateProfileRequest(BaseModel):
     institution: str | None = None
     research_field: str | None = None
     bio: str | None = None
+    avatar_url: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):

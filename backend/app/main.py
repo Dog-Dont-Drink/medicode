@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,6 +16,7 @@ from app.db.models.base import Base
 from app.db.models import user, project, dataset, analysis, order  # noqa: F401
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="MediCode API",
@@ -34,8 +37,16 @@ app.add_middleware(
 # ── Startup event — create tables (dev only) ─────────────
 @app.on_event("startup")
 async def on_startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as exc:
+        logger.exception("Database startup failed")
+        raise RuntimeError(
+            "Failed to connect to Supabase PostgreSQL. "
+            "For local development, use the Supabase Session pooler connection string on port 5432 "
+            "and ensure the URL includes sslmode=require."
+        ) from exc
 
 
 @app.on_event("shutdown")
