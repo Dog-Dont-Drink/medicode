@@ -22,9 +22,14 @@ from app.services.alipay_service import (
 
 
 PACKAGE_EXPIRE_MINUTES = 5
-PRICE_SCALE = Decimal("0.001")
+PRICE_SCALE = Decimal("0.01")
 SUCCESS_STATUSES = {"TRADE_SUCCESS", "TRADE_FINISHED"}
 CLOSED_STATUSES = {"TRADE_CLOSED"}
+SUBSCRIPTION_BY_PACKAGE = {
+    "basic": "basic",
+    "pro": "pro",
+    "enterprise": "enterprise",
+}
 
 
 @dataclass(frozen=True)
@@ -45,7 +50,7 @@ PACKAGE_CATALOG: Dict[str, PackageDefinition] = {
     "basic": PackageDefinition(
         id="basic",
         name="基础包",
-        amount=Decimal("49.00"),
+        amount=Decimal("0.01"),
         tokens=500,
         badge="",
         features=("描述统计分析", "基础图表生成", "CSV/Excel 格式", "邮件支持"),
@@ -53,7 +58,7 @@ PACKAGE_CATALOG: Dict[str, PackageDefinition] = {
     "pro": PackageDefinition(
         id="pro",
         name="专业包",
-        amount=Decimal("199.00"),
+        amount=Decimal("0.01"),
         tokens=2500,
         badge="最受欢迎",
         features=("全部分析方法", "可复现 R 脚本", "专业报告导出", "优先技术支持"),
@@ -61,7 +66,7 @@ PACKAGE_CATALOG: Dict[str, PackageDefinition] = {
     "enterprise": PackageDefinition(
         id="enterprise",
         name="企业包",
-        amount=Decimal("499.00"),
+        amount=Decimal("0.01"),
         tokens=8000,
         badge="",
         features=("无限分析方法", "定制分析模块", "API 集成接口", "专属技术顾问"),
@@ -109,6 +114,8 @@ def _mark_paid(order: Order, user: User, trade: AlipayTradeStatus) -> None:
     order.alipay_trade_no = trade.trade_no or order.alipay_trade_no
     order.paid_at = _coerce_payment_time(trade.paid_at) or datetime.now(timezone.utc)
     user.token_balance += order.tokens
+    # Sync plan level with the package user paid for.
+    user.subscription = SUBSCRIPTION_BY_PACKAGE.get(order.package_id, user.subscription)
 
 
 def _apply_trade_status(order: Order, user: User, trade: AlipayTradeStatus) -> bool:

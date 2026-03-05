@@ -7,8 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequest, NotFound
 from app.core.security import hash_password, verify_password
-from app.db.models.order import TokenUsage
+from app.db.models.order import Order, TokenUsage
 from app.db.models.user import User, VerificationCode
+
+SUBSCRIPTION_BY_PACKAGE = {
+    "basic": "basic",
+    "pro": "pro",
+    "enterprise": "enterprise",
+}
 
 
 async def get_profile(db: AsyncSession, user_id: str) -> User:
@@ -64,6 +70,23 @@ async def change_password(
 
 async def get_balance(db: AsyncSession, user_id: str) -> dict:
     user = await get_profile(db, user_id)
+
+    # Reconcile plan from latest paid order so legacy users no longer stay "free".
+    latest_paid_order = await db.execute(
+        select(Order.package_id)
+        .where(
+            Order.user_id == user_id,
+            Order.status == "paid",
+        )
+        .order_by(Order.paid_at.desc(), Order.created_at.desc())
+        .limit(1)
+    )
+    package_id = latest_paid_order.scalar_one_or_none()
+    if package_id:
+        inferred_subscription = SUBSCRIPTION_BY_PACKAGE.get(package_id)
+        if inferred_subscription and user.subscription != inferred_subscription:
+            user.subscription = inferred_subscription
+            await db.flush()
 
     # Current month usage
     now = datetime.now(timezone.utc)

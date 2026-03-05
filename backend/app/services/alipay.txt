@@ -91,7 +91,7 @@ def _client() -> DefaultAlipayClient:
     if not settings.ALIPAY_APP_ID or not settings.ALIPAY_PRIVATE_KEY or not settings.ALIPAY_PUBLIC_KEY:
         raise BadRequest("支付宝配置未完成，请检查 APP_ID、私钥和支付宝公钥")
 
-    config = AlipayClientConfig()
+    config = AlipayClientConfig(sandbox_debug=settings.ALIPAY_SANDBOX)
     config.app_id = settings.ALIPAY_APP_ID.strip()
     config.sign_type = "RSA2"
     config.app_private_key = _normalize_private_key(settings.ALIPAY_PRIVATE_KEY)
@@ -128,7 +128,6 @@ async def run_precreate(
     total_amount: str,
     timeout_express: str,
 ) -> Dict[str, str]:
-    #print(out_trade_no)
     model = AlipayTradePrecreateModel()
     model.out_trade_no = out_trade_no
     model.subject = subject

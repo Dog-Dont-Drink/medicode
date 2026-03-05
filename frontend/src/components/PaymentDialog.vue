@@ -25,12 +25,12 @@
             </div>
             <div class="order-row">
               <span class="order-label">单价</span>
-              <span class="order-value">¥{{ pkg?.unitPrice }}/Token</span>
+              <span class="order-value">¥{{ TEST_ORDER_AMOUNT }}/Token</span>
             </div>
             <div class="order-divider"></div>
             <div class="order-row">
               <span class="order-label text-base font-semibold">应付金额</span>
-              <span class="order-total">¥{{ pkg?.price }}</span>
+              <span class="order-total">¥{{ TEST_ORDER_AMOUNT }}</span>
             </div>
           </div>
 
@@ -47,7 +47,7 @@
 
           <button class="pay-btn" @click="handleCreateOrder">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            确认支付 ¥{{ pkg?.price }}
+            确认支付 ¥{{ TEST_ORDER_AMOUNT }}
           </button>
         </div>
 
@@ -85,7 +85,7 @@
           <div class="qr-info">
             <div class="info-row">
               <span>订单金额</span>
-              <span class="text-lg font-bold text-gray-900">¥{{ pkg?.price }}</span>
+              <span class="text-lg font-bold text-gray-900">¥{{ TEST_ORDER_AMOUNT }}</span>
             </div>
             <div class="info-row">
               <span>订单号</span>
@@ -121,7 +121,7 @@
             </div>
             <div class="success-row">
               <span>支付金额</span>
-              <span class="font-semibold text-gray-900">¥{{ pkg?.price }}</span>
+              <span class="font-semibold text-gray-900">¥{{ TEST_ORDER_AMOUNT }}</span>
             </div>
             <div class="success-row">
               <span>订单号</span>
@@ -179,6 +179,7 @@ type Step = 'confirm' | 'qrcode' | 'success' | 'failed'
 
 const step = ref<Step>('confirm')
 const orderId = ref('')
+const TEST_ORDER_AMOUNT = '0.001'
 const qrCanvas = ref<HTMLCanvasElement | null>(null)
 const qrLoading = ref(false)
 const qrError = ref(false)
