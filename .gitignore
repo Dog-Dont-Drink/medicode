@@ -22,9 +22,6 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
-medicode.db
-backend/uploads/*
-!backend/uploads/.gitkeep
 backend/demo_data/~$*
 
 # OS
