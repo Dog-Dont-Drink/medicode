@@ -27,6 +27,11 @@
           <p class="text-xs text-white/50">本月已用</p>
           <p class="text-sm font-semibold text-white">{{ usedThisMonth }} Token</p>
         </div>
+        <div class="w-px h-8 bg-white/20 hidden sm:block"></div>
+        <div class="text-right hidden sm:block">
+          <p class="text-xs text-white/50">模型实际消耗</p>
+          <p class="text-sm font-semibold text-white">{{ actualUsedThisMonth }} Token</p>
+        </div>
       </div>
     </div>
 
@@ -142,6 +147,7 @@ import { getOrderHistory, getPaymentPackages, getTokenBalance, type OrderRecord,
 const tokenBalance = ref(0)
 const currentPlan = ref('free')
 const usedThisMonth = ref(0)
+const actualUsedThisMonth = ref(0)
 const activePackage = ref('')
 
 const packages = ref<PaymentPackage[]>([])
@@ -173,6 +179,7 @@ async function loadBillingData() {
   tokenBalance.value = balance.balance
   currentPlan.value = balance.plan
   usedThisMonth.value = balance.used_this_month
+  actualUsedThisMonth.value = balance.actual_used_this_month
   orders.value = history
 }
 

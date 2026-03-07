@@ -1,6 +1,6 @@
 <template>
   <teleport to="body">
-    <div class="fixed top-20 right-4 z-[100] space-y-3 w-80">
+    <div class="fixed bottom-4 right-4 z-[100] space-y-3 w-80 max-w-[calc(100vw-2rem)]">
       <transition-group name="slide-up">
         <div
           v-for="notification in notifications"

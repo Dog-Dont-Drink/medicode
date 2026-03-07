@@ -22,6 +22,19 @@ def _random_code() -> str:
     return "".join(random.choices(string.digits, k=6))
 
 
+def _serialize_user(user: User) -> dict:
+    return {
+        "id": str(user.id),
+        "name": user.name,
+        "email": user.email,
+        "avatar_url": user.avatar_url,
+        "role": user.role,
+        "token_balance": user.token_balance,
+        "subscription": user.subscription,
+        "is_verified": user.is_verified,
+    }
+
+
 # ── Send Code ────────────────────────────────────────────
 
 async def send_code(db: AsyncSession, email: str, purpose: str) -> dict:
@@ -159,15 +172,7 @@ async def register(db: AsyncSession, name: str, email: str, password: str, code:
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "user": {
-            "id": str(user.id),
-            "name": user.name,
-            "email": user.email,
-            "avatar_url": user.avatar_url,
-            "token_balance": user.token_balance,
-            "subscription": user.subscription,
-            "is_verified": user.is_verified,
-        },
+        "user": _serialize_user(user),
     }
 
 
@@ -198,16 +203,16 @@ async def login(db: AsyncSession, email: str, password: str) -> dict:
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "user": {
-            "id": str(user.id),
-            "name": user.name,
-            "email": user.email,
-            "avatar_url": user.avatar_url,
-            "token_balance": user.token_balance,
-            "subscription": user.subscription,
-            "is_verified": user.is_verified,
-        },
+        "user": _serialize_user(user),
     }
+
+
+async def admin_login(db: AsyncSession, email: str, password: str) -> dict:
+    """Authenticate an administrator."""
+    result = await login(db, email, password)
+    if result["user"].get("role") != "admin":
+        raise Forbidden("该账号不是管理员，无法登录后台")
+    return result
 
 
 # ── Reset Password ───────────────────────────────────────

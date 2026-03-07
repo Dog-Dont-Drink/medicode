@@ -38,10 +38,24 @@
           <span>我的项目</span>
         </router-link>
 
-        <router-link to="/data" :class="linkClass('/data')" @click="$emit('close')">
-          <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-          <span>数据管理</span>
-        </router-link>
+        <div
+          class="group space-y-0.5"
+          @mouseenter="hoveredSection = 'data'"
+          @mouseleave="hoveredSection = null"
+        >
+          <router-link to="/data" :class="linkClass('/data')" @click="$emit('close')">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span>数据管理</span>
+          </router-link>
+          <div :class="['ml-[26px] mt-1 pl-3 border-l border-gray-100 space-y-0.5', isSectionExpanded('data') ? 'block' : 'hidden']">
+            <router-link to="/data" :class="subLinkClass('/data', true)" @click="$emit('close')">
+              数据上传
+            </router-link>
+            <router-link to="/data/cleaning" :class="subLinkClass('/data/cleaning', true)" @click="$emit('close')">
+              数据清洗
+            </router-link>
+          </div>
+        </div>
       </div>
 
       <!-- Divider + Section label -->
@@ -51,43 +65,65 @@
 
       <div class="space-y-0.5">
         <!-- Collapsible: 基础统计 -->
-        <button @click="toggle('basic')" class="nav-group-btn">
+        <div class="group space-y-0.5" @mouseenter="hoveredSection = 'basic'" @mouseleave="hoveredSection = null">
+        <button class="nav-group-btn" type="button">
           <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           <span class="flex-1 text-left">基础统计</span>
-          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', expanded.includes('basic') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', isSectionExpanded('basic') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <div v-if="expanded.includes('basic')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
-          <a v-for="s in basicItems" :key="s" class="sub-link">{{ s }}</a>
+        <div v-if="isSectionExpanded('basic')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
+          <router-link to="/analysis/descriptive" :class="subLinkClass('/analysis/descriptive', true)" @click="$emit('close')">
+            描述统计
+          </router-link>
+          <router-link to="/analysis/t-test" :class="subLinkClass('/analysis/t-test', true)" @click="$emit('close')">
+            两组间连续变量统计
+          </router-link>
+          <router-link to="/analysis/anova" :class="subLinkClass('/analysis/anova', true)" @click="$emit('close')">
+            多组间连续变量统计
+          </router-link>
+          <router-link to="/analysis/repeated-measures-anova" :class="subLinkClass('/analysis/repeated-measures-anova', true)" @click="$emit('close')">
+            重复测量方差分析
+          </router-link>
+          <router-link to="/analysis/chi-square" :class="subLinkClass('/analysis/chi-square', true)" @click="$emit('close')">
+            卡方检验
+          </router-link>
+        </div>
         </div>
 
         <!-- 回归分析 -->
-        <button @click="toggle('regression')" class="nav-group-btn">
+        <div class="group space-y-0.5" @mouseenter="hoveredSection = 'regression'" @mouseleave="hoveredSection = null">
+        <button class="nav-group-btn" type="button">
           <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
           <span class="flex-1 text-left">回归分析</span>
-          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', expanded.includes('regression') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', isSectionExpanded('regression') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <div v-if="expanded.includes('regression')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
+        <div v-if="isSectionExpanded('regression')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
           <a v-for="s in regressionItems" :key="s" class="sub-link">{{ s }}</a>
+        </div>
         </div>
 
         <!-- 生存分析 -->
-        <button @click="toggle('survival')" class="nav-group-btn">
+        <div class="group space-y-0.5" @mouseenter="hoveredSection = 'survival'" @mouseleave="hoveredSection = null">
+        <button class="nav-group-btn" type="button">
           <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><polyline points="14 7 21 7 21 14"/></svg>
           <span class="flex-1 text-left">生存分析</span>
-          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', expanded.includes('survival') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', isSectionExpanded('survival') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <div v-if="expanded.includes('survival')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
+        <div v-if="isSectionExpanded('survival')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
           <a v-for="s in survivalItems" :key="s" class="sub-link">{{ s }}</a>
+        </div>
         </div>
 
         <!-- 高级分析 -->
-        <button @click="toggle('advanced')" class="nav-group-btn">
+        <div class="group space-y-0.5" @mouseenter="hoveredSection = 'advanced'" @mouseleave="hoveredSection = null">
+        <button class="nav-group-btn" type="button">
           <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12c0-5.52 4.48-10 10-10"/></svg>
           <span class="flex-1 text-left">高级分析</span>
-          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', expanded.includes('advanced') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg :class="['w-3.5 h-3.5 text-gray-300 transition-transform duration-200', isSectionExpanded('advanced') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <div v-if="expanded.includes('advanced')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
+        <div v-if="isSectionExpanded('advanced')" class="ml-[26px] pl-3 border-l border-gray-100 space-y-0.5 pb-1">
           <a v-for="s in advancedItems" :key="s" class="sub-link">{{ s }}</a>
+        </div>
         </div>
       </div>
 
@@ -127,16 +163,14 @@ defineProps<{ open: boolean }>()
 defineEmits<{ close: [] }>()
 
 const route = useRoute()
-const expanded = ref<string[]>([])
+const hoveredSection = ref<string | null>(null)
 
 function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-function toggle(id: string) {
-  const i = expanded.value.indexOf(id)
-  if (i >= 0) expanded.value.splice(i, 1)
-  else expanded.value.push(id)
+function isSectionExpanded(id: string) {
+  return hoveredSection.value === id
 }
 
 function linkClass(path: string) {
@@ -148,7 +182,15 @@ function linkClass(path: string) {
   ]
 }
 
-const basicItems = ['描述统计', 'T 检验', '方差分析', '卡方检验', '非参数检验']
+function subLinkClass(path: string, exact = false) {
+  return [
+    'block px-2.5 py-1.5 rounded-md text-[12px] transition-all duration-150 cursor-pointer',
+    (exact ? route.path === path : isActive(path))
+      ? 'bg-primary-50 text-primary font-medium'
+      : 'text-gray-400 hover:text-primary hover:bg-primary-50/70'
+  ]
+}
+
 const regressionItems = ['线性回归', 'Logistic 回归', '多元回归', '岭回归 / LASSO']
 const survivalItems = ['KM 生存曲线', 'Cox 回归', 'Log-rank 检验', '竞争风险模型']
 const advancedItems = ['ROC 曲线', 'Meta 分析', '倾向评分匹配', '亚组分析', '诊断试验']
@@ -173,18 +215,5 @@ const advancedItems = ['ROC 曲线', 'Meta 分析', '倾向评分匹配', '亚�
 .nav-group-btn:hover {
   color: #111827;
   background: #f9fafb;
-}
-.sub-link {
-  display: block;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.sub-link:hover {
-  color: #059669;
-  background: #f0fdfa;
 }
 </style>

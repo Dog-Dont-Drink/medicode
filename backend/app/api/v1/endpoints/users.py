@@ -32,6 +32,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         id=str(current_user.id),
         name=current_user.name,
         email=current_user.email,
+        role=current_user.role,
         phone=current_user.phone,
         title=current_user.title,
         institution=current_user.institution,
@@ -40,6 +41,8 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         avatar_url=current_user.avatar_url,
         token_balance=current_user.token_balance,
         subscription=current_user.subscription,
+        is_verified=current_user.is_verified,
+        is_active=current_user.is_active,
     )
 
 
@@ -57,6 +60,7 @@ async def update_profile(
         id=str(updated.id),
         name=updated.name,
         email=updated.email,
+        role=updated.role,
         phone=updated.phone,
         title=updated.title,
         institution=updated.institution,
@@ -65,6 +69,8 @@ async def update_profile(
         avatar_url=updated.avatar_url,
         token_balance=updated.token_balance,
         subscription=updated.subscription,
+        is_verified=updated.is_verified,
+        is_active=updated.is_active,
     )
 
 
@@ -114,6 +120,7 @@ async def upload_avatar(
         id=str(updated.id),
         name=updated.name,
         email=updated.email,
+        role=updated.role,
         phone=updated.phone,
         title=updated.title,
         institution=updated.institution,
@@ -122,6 +129,8 @@ async def upload_avatar(
         avatar_url=updated.avatar_url,
         token_balance=updated.token_balance,
         subscription=updated.subscription,
+        is_verified=updated.is_verified,
+        is_active=updated.is_active,
     )
 
 

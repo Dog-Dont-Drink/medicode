@@ -9,6 +9,7 @@ interface User {
     avatar?: string
     role: 'user' | 'admin'
     tokenBalance: number
+    subscription: string
 }
 
 interface BackendUser {
@@ -20,6 +21,7 @@ interface BackendUser {
     role?: 'user' | 'admin'
     token_balance?: number
     tokenBalance?: number
+    subscription?: string | null
 }
 
 function normalizeAuthError(error: any, fallback: string) {
@@ -59,6 +61,7 @@ function normalizeUser(userData: BackendUser): User {
         avatar: userData.avatar_url || userData.avatar || '',
         role: userData.role || 'user',
         tokenBalance: userData.token_balance ?? userData.tokenBalance ?? 0,
+        subscription: userData.subscription || 'free',
     }
 }
 
@@ -76,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     function setUser(userData: BackendUser) {
         user.value = normalizeUser(userData)
+        localStorage.setItem('auth_user_role', user.value.role)
     }
 
     function setToken(newToken: string) {
@@ -89,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
         pendingEmail.value = null
         pendingPurpose.value = null
         localStorage.removeItem('auth_token')
+        localStorage.removeItem('auth_user_role')
     }
 
     // 设置待验证邮箱（注册/忘记密码后跳转验证页）
@@ -160,6 +165,21 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    async function adminLogin(email: string, password: string) {
+        loading.value = true
+        try {
+            const res = await api.post('/api/v1/auth/admin-login', { email, password })
+            const { access_token, user: userData } = res.data
+            setUser(userData)
+            setToken(access_token)
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: normalizeAuthError(error, '管理员登录失败') }
+        } finally {
+            loading.value = false
+        }
+    }
+
     // 验证邮箱验证码
     async function verifyCode(email: string, code: string, purpose: string) {
         loading.value = true
@@ -201,7 +221,7 @@ export const useAuthStore = defineStore('auth', () => {
     return {
         user, token, loading, pendingEmail, pendingPurpose,
         isAuthenticated, isAdmin,
-        login, register, logout,
+        login, adminLogin, register, logout,
         setUser, setToken,
         loadProfile,
         setPendingVerification, clearPending,

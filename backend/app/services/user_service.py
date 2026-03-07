@@ -1,6 +1,7 @@
 """User service — profile, password change, balance."""
 
 from datetime import datetime, timezone
+import math
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,8 @@ SUBSCRIPTION_BY_PACKAGE = {
     "pro": "pro",
     "enterprise": "enterprise",
 }
+AI_INTERPRETATION_BASE_FEE = 500
+AI_INTERPRETATION_MULTIPLIER = 1.8
 
 
 async def get_profile(db: AsyncSession, user_id: str) -> User:
@@ -98,9 +101,51 @@ async def get_balance(db: AsyncSession, user_id: str) -> dict:
         )
     )
     used = result.scalar()
+    actual_result = await db.execute(
+        select(func.coalesce(func.sum(TokenUsage.actual_tokens_consumed), 0)).where(
+            TokenUsage.user_id == user_id,
+            TokenUsage.created_at >= month_start,
+        )
+    )
+    actual_used = actual_result.scalar()
 
     return {
         "balance": user.token_balance,
         "plan": user.subscription,
         "used_this_month": used or 0,
+        "actual_used_this_month": actual_used or 0,
     }
+
+
+def calculate_ai_interpretation_charge(actual_tokens: int) -> int:
+    normalized_actual_tokens = max(int(actual_tokens), 0)
+    return int(math.ceil(AI_INTERPRETATION_BASE_FEE + normalized_actual_tokens * AI_INTERPRETATION_MULTIPLIER))
+
+
+async def consume_user_tokens(
+    db: AsyncSession,
+    user: User,
+    operation: str,
+    billed_tokens: int,
+    actual_tokens: int = 0,
+) -> int:
+    billed_tokens = max(int(billed_tokens), 0)
+    actual_tokens = max(int(actual_tokens), 0)
+    if billed_tokens <= 0:
+        return int(user.token_balance or 0)
+
+    if (user.token_balance or 0) < billed_tokens:
+        raise BadRequest("Token 余额不足，请先充值后再使用 AI 结果解读")
+
+    user.token_balance -= billed_tokens
+    user.updated_at = datetime.now(timezone.utc)
+    db.add(
+        TokenUsage(
+            user_id=user.id,
+            operation=operation,
+            tokens_consumed=billed_tokens,
+            actual_tokens_consumed=actual_tokens,
+        )
+    )
+    await db.flush()
+    return int(user.token_balance)

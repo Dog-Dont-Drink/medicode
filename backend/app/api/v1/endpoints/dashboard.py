@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models.analysis import Analysis
+from app.db.models.dataset import Dataset
 from app.db.models.order import TokenUsage
 from app.db.models.project import Project
 from app.db.models.user import User
@@ -39,12 +40,28 @@ async def get_dashboard(
         )
     )
     used_this_month = usage_result.scalar() or 0
+    actual_usage_result = await db.execute(
+        select(func.coalesce(func.sum(TokenUsage.actual_tokens_consumed), 0)).where(
+            TokenUsage.user_id == uid,
+            TokenUsage.created_at >= month_start,
+        )
+    )
+    actual_used_this_month = actual_usage_result.scalar() or 0
 
     # Project count
     proj_count_result = await db.execute(
         select(func.count(Project.id)).where(Project.owner_id == uid)
     )
     project_count = proj_count_result.scalar() or 0
+
+    # Dataset count
+    dataset_count_result = await db.execute(
+        select(func.count(Dataset.id))
+        .select_from(Dataset)
+        .join(Project, Dataset.project_id == Project.id)
+        .where(Project.owner_id == uid)
+    )
+    dataset_count = dataset_count_result.scalar() or 0
 
     # Analysis count (completed)
     analysis_count_result = await db.execute(
@@ -62,10 +79,17 @@ async def get_dashboard(
         .order_by(Project.updated_at.desc())
         .limit(5)
     )
-    recent_projects = [
-        {"id": str(p.id), "name": p.name, "updated_at": p.updated_at.isoformat()}
-        for p in recent_proj_result.scalars().all()
-    ]
+    recent_projects = []
+    for p in recent_proj_result.scalars().all():
+        recent_projects.append(
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "description": p.description,
+                "status": p.status,
+                "updated_at": p.updated_at.isoformat(),
+            }
+        )
 
     # Recent analyses (5)
     recent_an_result = await db.execute(
@@ -86,10 +110,22 @@ async def get_dashboard(
     ]
 
     return {
-        "token_balance": token_balance,
+        "token_balance": {
+            "balance": token_balance,
+            "plan": subscription,
+            "used_this_month": used_this_month,
+            "actual_used_this_month": actual_used_this_month,
+        },
+        "usage_stats": {
+            "active_projects": project_count,
+            "total_datasets": dataset_count,
+            "completed_analyses": analysis_count,
+        },
+        "projects": recent_projects,
         "subscription": subscription,
         "used_this_month": used_this_month,
         "project_count": project_count,
+        "dataset_count": dataset_count,
         "analysis_count": analysis_count,
         "recent_projects": recent_projects,
         "recent_analyses": recent_analyses,
