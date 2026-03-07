@@ -59,6 +59,10 @@ const routes: RouteRecordRaw[] = [
             { path: 'analysis/descriptive', name: 'DescriptiveTable', component: () => import('@/views/analysis/DescriptiveTableView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/t-test', name: 'TTest', component: () => import('@/views/analysis/TTestView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/anova', name: 'Anova', component: () => import('@/views/analysis/AnovaView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/linear-regression', name: 'LinearRegression', component: () => import('@/views/analysis/LinearRegressionView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/lasso-regression', name: 'LassoRegression', component: () => import('@/views/analysis/LassoRegressionView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/logistic-regression', name: 'LogisticRegression', component: () => import('@/views/analysis/LogisticRegressionView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/cox-regression', name: 'CoxRegression', component: () => import('@/views/analysis/CoxRegressionView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/repeated-measures-anova', name: 'RepeatedMeasuresAnova', component: () => import('@/views/analysis/RepeatedMeasuresAnovaView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/chi-square', name: 'ChiSquare', component: () => import('@/views/analysis/ChiSquareView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/new', name: 'AnalysisCreate', component: () => import('@/views/analysis/AnalysisCreateView.vue'), meta: { requiresAuth: true } },
@@ -106,7 +110,7 @@ router.beforeEach(async (to, from, next) => {
             try {
                 const res = await api.get('/api/v1/users/profile')
                 role = res.data?.role || 'user'
-                localStorage.setItem('auth_user_role', role)
+                localStorage.setItem('auth_user_role', role || 'user')
             } catch {
                 localStorage.removeItem('auth_token')
                 localStorage.removeItem('auth_user_role')

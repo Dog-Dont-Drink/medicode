@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import logging
 from typing import Literal
 
 import httpx
@@ -15,15 +16,14 @@ from app.schemas.descriptive import TableOneTablePayload
 
 
 FEATURE_NAME = "AI结果解读"
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TableOneInterpretationResult:
     content: str
     model: str
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
+    llm_tokens_used: int
 
 
 def _serialize_table(table: TableOneTablePayload) -> str:
@@ -118,8 +118,16 @@ def _build_user_prompt(table: TableOneTablePayload, language: Literal["zh", "en"
 
 
 async def interpret_tableone(table: TableOneTablePayload, language: Literal["zh", "en"]) -> TableOneInterpretationResult:
+    get_settings.cache_clear()
     settings = get_settings()
     if not settings.LLM_API_KEY.strip():
+        logger.warning(
+            "LLM API key is empty at runtime",
+            extra={
+                "llm_api_base_url": settings.LLM_API_BASE_URL,
+                "llm_model": settings.LLM_MODEL,
+            },
+        )
         raise BadRequest("AI 结果解读尚未配置模型 API Key")
 
     url = f"{settings.LLM_API_BASE_URL.rstrip('/')}/chat/completions"
@@ -146,8 +154,8 @@ async def interpret_tableone(table: TableOneTablePayload, language: Literal["zh"
     except httpx.HTTPStatusError as exc:
         detail = "AI 结果解读调用失败，请检查模型服务配置"
         try:
-            payload = exc.response.json()
-            message = payload.get("error", {}).get("message")
+            error_payload = exc.response.json()
+            message = error_payload.get("error", {}).get("message")
             if isinstance(message, str) and message.strip():
                 detail = f"AI 结果解读调用失败: {message.strip()}"
         except ValueError:
@@ -157,27 +165,21 @@ async def interpret_tableone(table: TableOneTablePayload, language: Literal["zh"
         raise BadRequest("AI 结果解读调用失败，请检查模型服务配置") from exc
 
     data = response.json()
-    content = (
-        data.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-    )
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
     if isinstance(content, list):
         content = "".join(str(item.get("text", "")) for item in content if isinstance(item, dict))
     content = str(content).strip()
     if not content:
         raise BadRequest("AI 结果解读未返回有效内容")
 
-    model = str(data.get("model") or settings.LLM_MODEL)
     usage = data.get("usage") or {}
+    print("usage",usage)
     prompt_tokens = int(usage.get("prompt_tokens") or 0)
     completion_tokens = int(usage.get("completion_tokens") or 0)
-    total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
+    llm_tokens_used = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
 
     return TableOneInterpretationResult(
         content=content,
-        model=model,
-        prompt_tokens=prompt_tokens,
-        completion_tokens=completion_tokens,
-        total_tokens=total_tokens,
+        model=str(data.get("model") or settings.LLM_MODEL),
+        llm_tokens_used=llm_tokens_used,
     )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
@@ -30,7 +30,10 @@ async def list_reports(
         .outerjoin(Dataset, Dataset.id == Analysis.dataset_id)
         .where(
             Analysis.created_by == current_user.id,
-            Analysis.analysis_type == "table1_interpretation",
+            or_(
+                Analysis.analysis_type == "table1_interpretation",
+                Analysis.analysis_type.like("%_regression_interpretation"),
+            ),
             Analysis.status == "completed",
         )
         .order_by(Analysis.executed_at.desc(), Analysis.created_at.desc())
@@ -57,8 +60,8 @@ async def list_reports(
                 content=result_data.get("content"),
                 prompt_tokens=int(result_data.get("prompt_tokens") or 0),
                 completion_tokens=int(result_data.get("completion_tokens") or 0),
-                actual_tokens=int(result_data.get("actual_tokens") or 0),
-                billed_tokens=int(result_data.get("billed_tokens") or analysis.tokens_consumed or 0),
+                actual_tokens=int(result_data.get("actual_tokens") or result_data.get("llm_tokens_used") or 0),
+                billed_tokens=int(result_data.get("billed_tokens") or result_data.get("charged_tokens") or analysis.tokens_consumed or 0),
                 created_at=analysis_result.created_at.isoformat() if analysis_result.created_at else analysis.created_at.isoformat(),
                 executed_at=analysis.executed_at.isoformat() if analysis.executed_at else None,
             )

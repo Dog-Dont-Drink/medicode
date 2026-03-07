@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-6">
     <div class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-cyan-50/60 px-5 py-4">
       <p class="text-sm font-semibold text-slate-900">混合设计重复测量方差分析</p>
@@ -72,8 +72,17 @@
               <div class="mt-3 rounded-lg border border-white bg-white p-2.5">
                 <p class="text-[11px] text-gray-500">{{ describeSelection(selectedContinuousVariables, continuousVariableOptions.length) }}</p>
                 <div class="mt-2 grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                  <label v-for="column in continuousVariableOptions" :key="column.name" class="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-gray-600">
-                    <input type="checkbox" class="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary" :checked="selectedContinuousVariables.includes(column.name)" @change="toggleVariable(column.name)" />
+                  <label
+                    v-for="column in continuousVariableOptions"
+                    :key="column.name"
+                    class="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-gray-600"
+                  >
+                    <input
+                      type="checkbox"
+                      class="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                      :checked="selectedContinuousVariables.includes(column.name)"
+                      @change="toggleVariable(column.name)"
+                    />
                     <span class="truncate">{{ column.name }}</span>
                   </label>
                 </div>
@@ -88,7 +97,11 @@
               </select>
             </div>
 
-            <button @click="runAnalysis" :disabled="isRunning || !selectedDatasetId || !subjectVariable || !timeVariable" class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">
+            <button
+              @click="runAnalysis"
+              :disabled="isRunning || !selectedDatasetId || !subjectVariable || !timeVariable"
+              class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <svg v-if="isRunning" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
               </svg>
@@ -192,11 +205,26 @@
             运行后，这里会以三线表形式紧凑展示混合设计重复测量方差分析结果。
           </div>
 
-          <div v-if="analysisResult" class="mt-4 border-t border-slate-200 pt-3 space-y-2 text-[12px] leading-6 text-slate-500">
-            <p v-for="item in analysisResult.variables" :key="`${item.variable}-note`">
-              <span class="font-medium text-slate-700">{{ item.variable }}</span>：
-              {{ renderResultNotes(item) }}
-            </p>
+          <div v-if="analysisResult" class="mt-4 space-y-3 border-t border-slate-200 pt-3 text-[12px] leading-6 text-slate-500">
+            <div
+              v-for="item in analysisResult.variables"
+              :key="`${item.variable}-note`"
+              class="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5"
+            >
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span class="font-semibold text-slate-800">{{ item.variable }}</span>
+                <span class="rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-500">{{ item.executed_test }}</span>
+              </div>
+              <div class="mt-2 space-y-1.5">
+                <p><span class="font-medium text-slate-700">样本处理：</span>{{ renderSampleSummary(item) }}</p>
+                <p><span class="font-medium text-slate-700">残差正态性：</span>{{ renderResidualSummary(item) }}</p>
+                <p><span class="font-medium text-slate-700">球形性检验：</span>{{ renderSphericitySummary(item) }}</p>
+                <p><span class="font-medium text-slate-700">时间效应：</span>{{ renderEffectDetail(item.time_effect) }}</p>
+                <p v-if="analysisResult.between_variable"><span class="font-medium text-slate-700">组间效应：</span>{{ renderEffectDetail(item.between_effect) }}</p>
+                <p v-if="analysisResult.between_variable"><span class="font-medium text-slate-700">交互效应：</span>{{ renderEffectDetail(item.interaction_effect) }}</p>
+                <p v-if="item.note"><span class="font-medium text-slate-700">说明：</span>{{ item.note }}</p>
+              </div>
+            </div>
             <div class="pt-1 text-[11px] text-slate-400">
               <p v-for="(item, index) in analysisResult.assumptions" :key="`assumption-${index}`">{{ item }}</p>
             </div>
@@ -305,55 +333,72 @@ function formatP(value: number | null) {
   return value.toFixed(3)
 }
 
-function formatMeanSd(mean: number | null, sd: number | null) {
-  if (mean === null) return '-'
-  if (sd === null) return mean.toFixed(2)
-  return `${mean.toFixed(2)} ± ${sd.toFixed(2)}`
-}
-
-function formatMedianIqr(median: number | null, q1: number | null, q3: number | null) {
-  if (median === null) return '-'
-  if (q1 === null || q3 === null) return median.toFixed(2)
-  return `${median.toFixed(2)} (${q1.toFixed(2)}, ${q3.toFixed(2)})`
-}
-
 function formatMeanSdOnly(mean: number | null, sd: number | null) {
   if (mean === null) return '-'
   if (sd === null) return mean.toFixed(1)
   return `${mean.toFixed(1)} ± ${sd.toFixed(1)}`
 }
 
-function renderEffect(effect: RepeatedMeasuresEffectResult | null | undefined) {
-  if (!effect || effect.p_value === null || effect.p_value === undefined) return '-'
-  const statistic = effect.statistic === null || effect.statistic === undefined ? '-' : effect.statistic.toFixed(3)
-  const df1 = effect.df_effect === null || effect.df_effect === undefined ? '-' : effect.df_effect.toFixed(2)
-  const df2 = effect.df_error === null || effect.df_error === undefined ? '-' : effect.df_error.toFixed(2)
-  const suffix = effect.corrected ? ' · GG校正' : ''
-  return `F=${statistic}; df=${df1},${df2}; P=${formatP(effect.p_value)}${suffix}`
-}
-
-function renderNormality(item: RepeatedMeasuresVariableResult) {
+function renderResidualSummary(item: RepeatedMeasuresVariableResult) {
   const status = item.residual_normality_passed ? '通过' : '未通过'
-  return `${status}; P=${formatP(item.residual_normality_p_value)}`
+  const statistic =
+    item.residual_normality_statistic === null || item.residual_normality_statistic === undefined
+      ? 'W=-'
+      : `W=${formatNumber(item.residual_normality_statistic)}`
+  return `${item.residual_normality_method}；${statistic}；P=${formatP(item.residual_normality_p_value)}；结果=${status}`
 }
 
-function renderSphericity(item: RepeatedMeasuresVariableResult) {
-  const timePart =
-    item.time_sphericity_p_value === null || item.time_sphericity_p_value === undefined
-      ? '时间: -'
-      : `时间: ${formatP(item.time_sphericity_p_value)}`
-  if (!analysisResult.value?.between_variable) {
-    return timePart
+function renderSingleSphericity(
+  label: string,
+  statistic: number | null | undefined,
+  pValue: number | null | undefined,
+  passed: boolean | null | undefined,
+  gg: number | null | undefined,
+  hf: number | null | undefined,
+) {
+  if (pValue === null || pValue === undefined) {
+    return `${label} 未提供检验结果`
   }
-  const interactionPart =
-    item.interaction_sphericity_p_value === null || item.interaction_sphericity_p_value === undefined
-      ? '交互: -'
-      : `交互: ${formatP(item.interaction_sphericity_p_value)}`
-  return `${timePart}; ${interactionPart}`
+
+  const status = passed === null || passed === undefined ? '未判定' : passed ? '通过' : '未通过'
+  const parts = [
+    `${label} W=${formatNumber(statistic ?? null)}`,
+    `P=${formatP(pValue)}`,
+    `结果=${status}`,
+  ]
+  if (gg !== null && gg !== undefined) {
+    parts.push(`GG ε=${formatNumber(gg)}`)
+  }
+  if (hf !== null && hf !== undefined) {
+    parts.push(`HF ε=${formatNumber(hf)}`)
+  }
+  return parts.join('；')
 }
 
-function getTimeCellSummaries(item: RepeatedMeasuresVariableResult, timeLevel: string) {
-  return item.time_summaries.filter((summary) => summary.time_level === timeLevel)
+function renderSphericitySummary(item: RepeatedMeasuresVariableResult) {
+  const parts = [
+    renderSingleSphericity(
+      '时间',
+      item.time_sphericity_statistic,
+      item.time_sphericity_p_value,
+      item.time_sphericity_passed,
+      item.time_gg_epsilon,
+      item.time_hf_epsilon,
+    ),
+  ]
+  if (analysisResult.value?.between_variable) {
+    parts.push(
+      renderSingleSphericity(
+        '时间×组间',
+        item.interaction_sphericity_statistic,
+        item.interaction_sphericity_p_value,
+        item.interaction_sphericity_passed,
+        item.interaction_gg_epsilon,
+        item.interaction_hf_epsilon,
+      ),
+    )
+  }
+  return parts.join('； ')
 }
 
 function getDisplayGroups() {
@@ -387,33 +432,24 @@ function formatEffectStatistic(effect: RepeatedMeasuresEffectResult | null | und
   return effect.statistic.toFixed(2)
 }
 
-function renderDfNote(label: string, effect: RepeatedMeasuresEffectResult | null | undefined) {
-  if (!effect || effect.df_effect === null || effect.df_effect === undefined || effect.df_error === null || effect.df_error === undefined) {
-    return `${label}df=-`
-  }
-  return `${label}df=${formatNumber(effect.df_effect)},${formatNumber(effect.df_error)}`
+function renderSampleSummary(item: RepeatedMeasuresVariableResult) {
+  return `完整受试者 ${item.complete_subject_count}，剔除 ${item.excluded_subject_count}，重复记录均值处理 ${item.duplicate_pair_count} 次`
 }
 
-function renderResultNotes(item: RepeatedMeasuresVariableResult) {
-  const parts = [
-    `${item.executed_test}`,
-    `完整受试者 ${item.complete_subject_count}，剔除 ${item.excluded_subject_count}，重复记录取均值 ${item.duplicate_pair_count}`,
-    `残差正态性 ${renderNormality(item)}`,
-    `球形性 ${renderSphericity(item)}`,
-    renderDfNote('时间', item.time_effect),
-  ]
-  if (analysisResult.value?.between_variable) {
-    parts.push(renderDfNote('组间', item.between_effect))
-    parts.push(renderDfNote('交互', item.interaction_effect))
-  }
-  if (item.note) {
-    parts.push(item.note)
-  }
-  return parts.join('；')
+function renderEffectDetail(effect: RepeatedMeasuresEffectResult | null | undefined) {
+  if (!effect) return '-'
+  const statistic = effect.statistic === null || effect.statistic === undefined ? 'F=-' : `F=${formatNumber(effect.statistic)}`
+  const df =
+    effect.df_effect === null || effect.df_effect === undefined || effect.df_error === null || effect.df_error === undefined
+      ? 'df=-'
+      : `df=${formatNumber(effect.df_effect)}, ${formatNumber(effect.df_error)}`
+  const correction = effect.corrected ? '；已采用 GG 校正' : ''
+  return `${statistic}；${df}；P=${formatP(effect.p_value ?? null)}${correction}`
 }
 
 function buildResultTableText() {
   if (!analysisResult.value) return ''
+
   const headers = [
     '项目',
     '组别',
@@ -423,6 +459,7 @@ function buildResultTableText() {
     '时间 P值',
     ...(analysisResult.value.between_variable ? ['组间 F值', '组间 P值', '时间×组间 F值', '时间×组间 P值'] : []),
   ]
+
   const rows = analysisResult.value.variables.flatMap((item) =>
     getDisplayGroups().map((groupLevel, rowIndex) =>
       [
@@ -443,7 +480,12 @@ function buildResultTableText() {
       ].join('\t'),
     ),
   )
-  const notes = analysisResult.value.variables.map((item) => `${item.variable}: ${renderResultNotes(item)}`)
+
+  const notes = analysisResult.value.variables.map(
+    (item) =>
+      `${item.variable}: 样本处理=${renderSampleSummary(item)} | 残差正态性=${renderResidualSummary(item)} | 球形性检验=${renderSphericitySummary(item)} | 时间效应=${renderEffectDetail(item.time_effect)}${analysisResult.value?.between_variable ? ` | 组间效应=${renderEffectDetail(item.between_effect)} | 交互效应=${renderEffectDetail(item.interaction_effect)}` : ''}${item.note ? ` | 说明=${item.note}` : ''}`,
+  )
+
   return [headers.join('\t'), ...rows, '', '备注', ...notes].join('\n')
 }
 
@@ -554,6 +596,7 @@ async function runAnalysis() {
     notificationStore.warning('请选择连续变量', '至少选择一个连续变量进行重复测量分析。')
     return
   }
+
   isRunning.value = true
   try {
     analysisResult.value = await runRepeatedMeasuresAnova({
