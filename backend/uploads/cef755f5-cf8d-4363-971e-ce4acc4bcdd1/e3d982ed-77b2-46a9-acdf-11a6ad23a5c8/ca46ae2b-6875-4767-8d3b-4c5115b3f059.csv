@@ -1,0 +1,7 @@
+﻿patient_id,sex,visit,systolic_bp
+P001,Male,T0,130
+P001,Male,T1,128
+P001,Male,T2,125
+P002,Female,T0,140
+P002,Female,T1,138
+P002,Female,T2,136
