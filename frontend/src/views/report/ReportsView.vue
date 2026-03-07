@@ -53,7 +53,7 @@
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold tracking-[0.16em] text-emerald-700">
-                  基线特征
+                  {{ reportTypeLabel(report) }}
                 </span>
                 <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                   {{ report.language === 'en' ? 'English' : '中文' }}
@@ -124,11 +124,22 @@ function previewText(content?: string | null) {
   return `${content.slice(0, 220).trim()}...`
 }
 
+function reportTypeLabel(report: ReportListItem) {
+  if (report.analysis_type === 'table1_interpretation') return '基线特征'
+  if (report.analysis_type === 'linear_regression_interpretation') return '线性回归'
+  if (report.analysis_type === 'logistic_regression_interpretation') return 'Logistic回归'
+  if (report.analysis_type === 'lasso_regression_interpretation') return 'LASSO回归'
+  return report.feature_name || '结果解读'
+}
+
 function reportDisplayTitle(report: ReportListItem) {
-  if (report.group_variable) {
-    return `基线特征结果解读 · ${report.group_variable}`
+  if (report.analysis_type === 'table1_interpretation') {
+    return report.group_variable ? `基线特征结果解读 · ${report.group_variable}` : '基线特征结果解读'
   }
-  return '基线特征结果解读'
+  if (report.analysis_type === 'linear_regression_interpretation') return '线性回归结果解读'
+  if (report.analysis_type === 'logistic_regression_interpretation') return 'Logistic 回归结果解读'
+  if (report.analysis_type === 'lasso_regression_interpretation') return 'LASSO 回归结果解读'
+  return report.feature_name || report.name
 }
 
 function toggleExpanded(analysisId: string) {

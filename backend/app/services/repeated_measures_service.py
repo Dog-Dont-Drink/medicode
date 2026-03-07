@@ -1,16 +1,16 @@
-"""Service for repeated-measures and mixed-design ANOVA workflows via R."""
+﻿"""Service for repeated-measures and mixed-design ANOVA workflows via R."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-import subprocess
 import tempfile
 
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from app.core.exceptions import BadRequest
+from app.services.r_runtime import run_rscript
 
 
 @dataclass
@@ -40,13 +40,16 @@ class RepeatedMeasuresVariableResultData:
     complete_subject_count: int
     excluded_subject_count: int
     duplicate_pair_count: int
+    residual_normality_statistic: float | None
     residual_normality_p_value: float | None
     residual_normality_passed: bool
     residual_normality_method: str
+    time_sphericity_statistic: float | None
     time_sphericity_p_value: float | None
     time_sphericity_passed: bool | None
     time_gg_epsilon: float | None
     time_hf_epsilon: float | None
+    interaction_sphericity_statistic: float | None
     interaction_sphericity_p_value: float | None
     interaction_sphericity_passed: bool | None
     interaction_gg_epsilon: float | None
@@ -307,6 +310,23 @@ extract_effect <- function(univariate_tests, effect_name) {
   )
 }
 
+extract_table_value <- function(test_table, row_name, column_candidates) {
+  if (is.null(test_table) || !(row_name %in% rownames(test_table))) {
+    return(NA)
+  }
+
+  normalized_columns <- tolower(gsub("[^a-z]", "", colnames(test_table)))
+  for (candidate in column_candidates) {
+    normalized_candidate <- tolower(gsub("[^a-z]", "", candidate))
+    matched_index <- which(normalized_columns == normalized_candidate)
+    if (length(matched_index) > 0) {
+      return(unname(test_table[row_name, matched_index[1]]))
+    }
+  }
+
+  return(NA)
+}
+
 df <- read.csv(input_csv, check.names = FALSE, stringsAsFactors = FALSE)
 between_enabled <- between_var_arg != ""
 
@@ -391,9 +411,24 @@ for (var_name in variables) {
     lm(value ~ factor(subject) + time, data = balanced_df)
   }
   residual_values <- residuals(residual_fit)
+  residual_normality_statistic <- NA
   if (length(residual_values) >= 3 && length(residual_values) <= 5000) {
-    residual_normality_p <- shapiro.test(residual_values)$p.value
-    residual_normality_method <- "Shapiro-Wilk residual normality"
+    if (length(unique(residual_values)) < 3) {
+      residual_normality_p <- NA
+      residual_normality_method <- "残差取值完全相同，无法执行 Shapiro-Wilk"
+    } else {
+      shapiro_result <- tryCatch(
+        shapiro.test(residual_values),
+        error = function(e) NULL
+      )
+      residual_normality_statistic <- if (is.null(shapiro_result)) NA else unname(shapiro_result$statistic)
+      residual_normality_p <- if (is.null(shapiro_result)) NA else shapiro_result$p.value
+      residual_normality_method <- if (is.null(shapiro_result)) {
+        "残差正态性无法评估"
+      } else {
+        "Shapiro-Wilk residual normality"
+      }
+    }
   } else if (length(residual_values) < 3) {
     residual_normality_p <- NA
     residual_normality_method <- "残差样本量不足"
@@ -436,8 +471,10 @@ for (var_name in variables) {
   between_effect <- if (between_enabled) extract_effect(univariate_tests, "between") else NULL
   interaction_effect <- if (between_enabled) extract_effect(univariate_tests, "between:time") else NULL
 
+  time_sphericity_stat <- NA
   time_sphericity_p <- NA
   time_sphericity_passed <- if (length(time_levels) > 2) NA else TRUE
+  interaction_sphericity_stat <- NA
   interaction_sphericity_p <- NA
   interaction_sphericity_passed <- if (between_enabled && length(time_levels) > 2) NA else NULL
   time_gg <- NA
@@ -446,10 +483,12 @@ for (var_name in variables) {
   interaction_hf <- NA
 
   if (!is.null(sphericity_tests) && "time" %in% rownames(sphericity_tests)) {
+    time_sphericity_stat <- extract_table_value(sphericity_tests, "time", c("Test statistic", "Statistic", "W"))
     time_sphericity_p <- unname(sphericity_tests["time", "p-value"])
     time_sphericity_passed <- !is.na(time_sphericity_p) && time_sphericity_p >= alpha
   }
   if (!is.null(sphericity_tests) && between_enabled && "between:time" %in% rownames(sphericity_tests)) {
+    interaction_sphericity_stat <- extract_table_value(sphericity_tests, "between:time", c("Test statistic", "Statistic", "W"))
     interaction_sphericity_p <- unname(sphericity_tests["between:time", "p-value"])
     interaction_sphericity_passed <- !is.na(interaction_sphericity_p) && interaction_sphericity_p >= alpha
   }
@@ -503,13 +542,16 @@ for (var_name in variables) {
     complete_subject_count = complete_subject_count,
     excluded_subject_count = excluded_subject_count,
     duplicate_pair_count = duplicate_pair_count,
+    residual_normality_statistic = residual_normality_statistic,
     residual_normality_p_value = residual_normality_p,
     residual_normality_passed = residual_normality_passed,
     residual_normality_method = residual_normality_method,
+    time_sphericity_statistic = time_sphericity_stat,
     time_sphericity_p_value = time_sphericity_p,
     time_sphericity_passed = ifelse(is.na(time_sphericity_passed), "", time_sphericity_passed),
     time_gg_epsilon = time_gg,
     time_hf_epsilon = time_hf,
+    interaction_sphericity_statistic = interaction_sphericity_stat,
     interaction_sphericity_p_value = interaction_sphericity_p,
     interaction_sphericity_passed = ifelse(is.null(interaction_sphericity_passed) || is.na(interaction_sphericity_passed), "", interaction_sphericity_passed),
     interaction_gg_epsilon = interaction_gg,
@@ -539,25 +581,19 @@ summary_df <- if (length(summary_rows)) do.call(rbind, summary_rows) else data.f
 write.csv(summary_df, summary_csv, row.names = FALSE)
 """
         script_path.write_text(r_script, encoding="utf-8")
-        try:
-            subprocess.run(
-                [
-                    "Rscript",
-                    str(script_path),
-                    str(input_csv),
-                    str(summary_csv),
-                    subject_variable,
-                    between_variable or "",
-                    time_variable,
-                    str(alpha),
-                    "\t".join(continuous_variables),
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except (OSError, subprocess.CalledProcessError) as exc:
-            raise BadRequest("R 混合设计重复测量方差分析执行失败，请确认本机已安装 Rscript 且 car 包可用") from exc
+        run_rscript(
+            [
+                str(script_path),
+                str(input_csv),
+                str(summary_csv),
+                subject_variable,
+                between_variable or "",
+                time_variable,
+                str(alpha),
+                "\t".join(continuous_variables),
+            ],
+            "R 混合设计重复测量方差分析执行失败",
+        )
 
         if not summary_csv.exists():
             raise BadRequest("R 混合设计重复测量方差分析未返回结果")
@@ -583,13 +619,16 @@ write.csv(summary_df, summary_csv, row.names = FALSE)
                 complete_subject_count=complete_subject_count or int(row.get("complete_subject_count") or 0),
                 excluded_subject_count=excluded_subject_count or int(row.get("excluded_subject_count") or 0),
                 duplicate_pair_count=duplicate_pair_count or int(row.get("duplicate_pair_count") or 0),
+                residual_normality_statistic=_round_nullable(row.get("residual_normality_statistic")),
                 residual_normality_p_value=_round_nullable(row.get("residual_normality_p_value")),
                 residual_normality_passed=bool(_parse_boolish(row.get("residual_normality_passed"))),
                 residual_normality_method=str(row.get("residual_normality_method") or ""),
+                time_sphericity_statistic=_round_nullable(row.get("time_sphericity_statistic")),
                 time_sphericity_p_value=_round_nullable(row.get("time_sphericity_p_value")),
                 time_sphericity_passed=_parse_boolish(row.get("time_sphericity_passed")),
                 time_gg_epsilon=_round_nullable(row.get("time_gg_epsilon")),
                 time_hf_epsilon=_round_nullable(row.get("time_hf_epsilon")),
+                interaction_sphericity_statistic=_round_nullable(row.get("interaction_sphericity_statistic")),
                 interaction_sphericity_p_value=_round_nullable(row.get("interaction_sphericity_p_value")),
                 interaction_sphericity_passed=_parse_boolish(row.get("interaction_sphericity_passed")),
                 interaction_gg_epsilon=_round_nullable(row.get("interaction_gg_epsilon")),

@@ -42,10 +42,8 @@ class TableOneInterpretResponse(BaseModel):
     content: str
     analysis_id: str | None = None
     saved_at: str | None = None
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    actual_tokens: int = 0
-    billed_tokens: int = 0
+    llm_tokens_used: int = 0
+    charged_tokens: int = 0
     remaining_balance: int = 0
 
 
@@ -57,10 +55,8 @@ class SavedTableOneInterpretResponse(BaseModel):
     content: str | None = None
     analysis_id: str | None = None
     saved_at: str | None = None
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    actual_tokens: int = 0
-    billed_tokens: int = 0
+    llm_tokens_used: int = 0
+    charged_tokens: int = 0
 
 
 class TTestRequest(BaseModel):
@@ -223,13 +219,16 @@ class RepeatedMeasuresVariableResult(BaseModel):
     complete_subject_count: int
     excluded_subject_count: int
     duplicate_pair_count: int
+    residual_normality_statistic: float | None = None
     residual_normality_p_value: float | None = None
     residual_normality_passed: bool = False
     residual_normality_method: str
+    time_sphericity_statistic: float | None = None
     time_sphericity_p_value: float | None = None
     time_sphericity_passed: bool | None = None
     time_gg_epsilon: float | None = None
     time_hf_epsilon: float | None = None
+    interaction_sphericity_statistic: float | None = None
     interaction_sphericity_p_value: float | None = None
     interaction_sphericity_passed: bool | None = None
     interaction_gg_epsilon: float | None = None
@@ -253,3 +252,220 @@ class RepeatedMeasuresResponse(BaseModel):
     confirm_repeated_design: bool
     assumptions: list[str]
     variables: list[RepeatedMeasuresVariableResult]
+
+
+class LinearRegressionRequest(BaseModel):
+    dataset_id: str
+    outcome_variable: str
+    predictor_variables: list[str] = Field(default_factory=list)
+    alpha: float = Field(default=0.05, gt=0, lt=0.2)
+
+
+class LinearRegressionCoefficient(BaseModel):
+    term: str
+    estimate: float | None = None
+    std_error: float | None = None
+    statistic: float | None = None
+    p_value: float | None = None
+    conf_low: float | None = None
+    conf_high: float | None = None
+
+
+class LinearRegressionResponse(BaseModel):
+    dataset_name: str
+    outcome_variable: str
+    predictor_variables: list[str]
+    sample_size: int
+    excluded_rows: int
+    alpha: float
+    r_squared: float | None = None
+    adjusted_r_squared: float | None = None
+    residual_standard_error: float | None = None
+    f_statistic: float | None = None
+    df_model: float | None = None
+    df_residual: float | None = None
+    model_p_value: float | None = None
+    formula: str
+    assumptions: list[str]
+    coefficients: list[LinearRegressionCoefficient]
+    note: str
+
+
+class LogisticRegressionRequest(BaseModel):
+    dataset_id: str
+    outcome_variable: str
+    predictor_variables: list[str] = Field(default_factory=list)
+    alpha: float = Field(default=0.05, gt=0, lt=0.2)
+
+
+class LogisticRegressionCoefficient(BaseModel):
+    term: str
+    odds_ratio: float | None = None
+    std_error: float | None = None
+    z_value: float | None = None
+    p_value: float | None = None
+    conf_low: float | None = None
+    conf_high: float | None = None
+
+
+class LogisticRegressionResponse(BaseModel):
+    dataset_name: str
+    outcome_variable: str
+    event_level: str
+    reference_level: str
+    predictor_variables: list[str]
+    sample_size: int
+    excluded_rows: int
+    alpha: float
+    pseudo_r_squared: float | None = None
+    aic: float | None = None
+    null_deviance: float | None = None
+    residual_deviance: float | None = None
+    df_model: float | None = None
+    df_residual: float | None = None
+    model_p_value: float | None = None
+    formula: str
+    assumptions: list[str]
+    coefficients: list[LogisticRegressionCoefficient]
+    note: str
+
+
+class LassoPlotPayload(BaseModel):
+    name: str
+    filename: str
+    media_type: str = "image/png"
+    content_base64: str
+
+
+class LassoFeatureResult(BaseModel):
+    term: str
+    coefficient_lambda_min: float | None = None
+    coefficient_lambda_1se: float | None = None
+    selected_at_lambda_min: bool = False
+    selected_at_lambda_1se: bool = False
+
+
+class LassoRegressionRequest(BaseModel):
+    dataset_id: str
+    outcome_variable: str
+    predictor_variables: list[str] = Field(default_factory=list)
+    alpha: float = Field(default=0.05, gt=0, lt=0.2)
+    nfolds: int = Field(default=10, ge=3, le=20)
+
+
+class LassoRegressionResponse(BaseModel):
+    dataset_name: str
+    outcome_variable: str
+    predictor_variables: list[str]
+    family: Literal["gaussian", "binomial"]
+    event_level: str | None = None
+    reference_level: str | None = None
+    sample_size: int
+    excluded_rows: int
+    alpha: float
+    lambda_min: float
+    lambda_1se: float
+    nonzero_count_lambda_min: int
+    nonzero_count_lambda_1se: int
+    assumptions: list[str]
+    selected_features: list[LassoFeatureResult]
+    plots: list[LassoPlotPayload]
+    note: str
+
+
+class CoxRegressionRequest(BaseModel):
+    dataset_id: str
+    time_variable: str
+    event_variable: str
+    predictor_variables: list[str] = Field(default_factory=list)
+    alpha: float = Field(default=0.05, gt=0, lt=0.2)
+
+
+class CoxRegressionCoefficient(BaseModel):
+    term: str
+    hazard_ratio: float | None = None
+    std_error: float | None = None
+    z_value: float | None = None
+    p_value: float | None = None
+    conf_low: float | None = None
+    conf_high: float | None = None
+
+
+class CoxRegressionPhTest(BaseModel):
+    term: str
+    statistic: float | None = None
+    df: float | None = None
+    p_value: float | None = None
+
+
+class CoxRegressionResponse(BaseModel):
+    dataset_name: str
+    time_variable: str
+    event_variable: str
+    event_level: str
+    reference_level: str
+    predictor_variables: list[str]
+    sample_size: int
+    event_count: int
+    excluded_rows: int
+    alpha: float
+    concordance: float | None = None
+    concordance_std_error: float | None = None
+    likelihood_ratio_statistic: float | None = None
+    likelihood_ratio_df: float | None = None
+    likelihood_ratio_p_value: float | None = None
+    wald_statistic: float | None = None
+    wald_df: float | None = None
+    wald_p_value: float | None = None
+    score_statistic: float | None = None
+    score_df: float | None = None
+    score_p_value: float | None = None
+    global_ph_p_value: float | None = None
+    formula: str
+    assumptions: list[str]
+    coefficients: list[CoxRegressionCoefficient]
+    proportional_hazards_tests: list[CoxRegressionPhTest]
+    note: str
+
+
+class RegressionInterpretRequest(BaseModel):
+    dataset_id: str
+    analysis_kind: Literal["linear", "lasso", "logistic"]
+    language: Literal["zh", "en"] = "zh"
+    payload: dict
+
+
+class RegressionExportRequest(BaseModel):
+    analysis_kind: Literal["linear", "lasso", "logistic"]
+    payload: dict
+
+
+class LassoPlotPdfExportRequest(BaseModel):
+    dataset_id: str
+    plot: LassoPlotPayload
+
+
+class RegressionInterpretResponse(BaseModel):
+    feature_name: str
+    analysis_kind: Literal["linear", "lasso", "logistic"]
+    language: Literal["zh", "en"]
+    model: str
+    content: str
+    analysis_id: str | None = None
+    saved_at: str | None = None
+    llm_tokens_used: int = 0
+    charged_tokens: int = 0
+    remaining_balance: int = 0
+
+
+class SavedRegressionInterpretResponse(BaseModel):
+    found: bool
+    feature_name: str | None = None
+    analysis_kind: Literal["linear", "lasso", "logistic"] | None = None
+    language: Literal["zh", "en"] | None = None
+    model: str | None = None
+    content: str | None = None
+    analysis_id: str | None = None
+    saved_at: str | None = None
+    llm_tokens_used: int = 0
+    charged_tokens: int = 0

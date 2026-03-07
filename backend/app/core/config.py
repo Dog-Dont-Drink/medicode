@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_SQLITE_PATH.as_posix()}"
+    DATABASE_ECHO: bool = False
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -56,10 +57,16 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # LLM
-    LLM_API_BASE_URL: str = "https://api.openai.com/v1"
-    LLM_API_KEY: str = ""
-    LLM_MODEL: str = "gpt-4.1-mini"
+    LLM_API_BASE_URL: str = "https://api.deepseek.com"
+    LLM_API_KEY: str = "sk-ddfd45647826400491f6aeabf6f38a17"
+    LLM_MODEL: str = "deepseek-chat"
     LLM_TIMEOUT_SECONDS: int = 60
+
+    # R runtime
+    RSCRIPT_COMMAND: str = "Rscript"
+    R_AUTO_INSTALL_ENABLED: bool = True
+    R_PACKAGE_REPO: str = "https://cloud.r-project.org"
+    R_INSTALL_TIMEOUT_SECONDS: int = 900
 
     model_config = {"env_file": str(ENV_FILE), "env_file_encoding": "utf-8"}
 

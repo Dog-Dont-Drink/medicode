@@ -1,10 +1,11 @@
-"""Service for generating Table 1 baseline tables with tableone."""
+﻿"""Service for generating Table 1 baseline tables with tableone."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from io import BytesIO
-import subprocess
+from pathlib import Path
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from scipy import stats
 from tableone import TableOne
 
 from app.core.exceptions import BadRequest
+from app.services.r_runtime import run_rscript
 from app.services.dataset_parser import infer_dataframe_column_kinds, load_tabular_dataframe
 
 
@@ -118,15 +120,13 @@ matrix_data <- matrix(values, nrow = n_row, byrow = TRUE)
 test_result <- stats::fisher.test(matrix_data, workspace = 2e8)
 cat(format(test_result$p.value, scientific = TRUE))
 """
-    try:
-        completed = subprocess.run(
-            ["Rscript", "-e", r_script, str(contingency_table.shape[0]), str(contingency_table.shape[1]), flattened],
-            capture_output=True,
-            text=True,
-            check=True,
+    with tempfile.TemporaryDirectory(prefix="medicode-fisher-") as temp_dir:
+        script_path = Path(temp_dir) / "fisher_exact.R"
+        script_path.write_text(r_script, encoding="utf-8")
+        completed = run_rscript(
+            [str(script_path), str(contingency_table.shape[0]), str(contingency_table.shape[1]), flattened],
+            "R fisher.test 执行失败，无法完成 RxC 精确检验",
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise BadRequest("R fisher.test 执行失败，无法完成 RxC 精确检验") from exc
 
     output = completed.stdout.strip()
     if not output:
@@ -268,6 +268,18 @@ def generate_tableone(
     ]
     if unsupported_variables:
         raise BadRequest(f"以下变量暂不支持 Table 1 统计: {', '.join(unsupported_variables[:5])}")
+
+    high_cardinality_categorical: list[str] = []
+    for column in categorical_variables:
+        non_null_count = int(df[column].notna().sum())
+        unique_count = int(df[column].dropna().astype(str).nunique())
+        if unique_count > 20 or (non_null_count >= 10 and unique_count / max(non_null_count, 1) >= 0.5):
+            high_cardinality_categorical.append(column)
+    if high_cardinality_categorical:
+        raise BadRequest(
+            "以下分类变量水平过多或接近唯一值，不适合基线统计，请去掉 ID 类字段后重试: "
+            + ", ".join(high_cardinality_categorical[:5])
+        )
 
     nonnormal_variables: list[str] = []
     normality_method = "Shapiro-Wilk（n<=5000）/ D'Agostino-Pearson（n>5000）"

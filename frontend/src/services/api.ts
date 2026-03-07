@@ -328,13 +328,16 @@ export interface RepeatedMeasuresVariableResult {
     complete_subject_count: number
     excluded_subject_count: number
     duplicate_pair_count: number
+    residual_normality_statistic: number | null
     residual_normality_p_value: number | null
     residual_normality_passed: boolean
     residual_normality_method: string
+    time_sphericity_statistic: number | null
     time_sphericity_p_value: number | null
     time_sphericity_passed: boolean | null
     time_gg_epsilon: number | null
     time_hf_epsilon: number | null
+    interaction_sphericity_statistic: number | null
     interaction_sphericity_p_value: number | null
     interaction_sphericity_passed: boolean | null
     interaction_gg_epsilon: number | null
@@ -358,6 +361,223 @@ export interface RepeatedMeasuresResponse {
     confirm_repeated_design: boolean
     assumptions: string[]
     variables: RepeatedMeasuresVariableResult[]
+}
+
+export interface LinearRegressionRequest {
+    dataset_id: string
+    outcome_variable: string
+    predictor_variables: string[]
+    alpha: number
+}
+
+export interface LinearRegressionCoefficient {
+    term: string
+    estimate: number | null
+    std_error: number | null
+    statistic: number | null
+    p_value: number | null
+    conf_low: number | null
+    conf_high: number | null
+}
+
+export interface LinearRegressionResponse {
+    dataset_name: string
+    outcome_variable: string
+    predictor_variables: string[]
+    sample_size: number
+    excluded_rows: number
+    alpha: number
+    r_squared: number | null
+    adjusted_r_squared: number | null
+    residual_standard_error: number | null
+    f_statistic: number | null
+    df_model: number | null
+    df_residual: number | null
+    model_p_value: number | null
+    formula: string
+    assumptions: string[]
+    coefficients: LinearRegressionCoefficient[]
+    note: string
+}
+
+export interface LogisticRegressionRequest {
+    dataset_id: string
+    outcome_variable: string
+    predictor_variables: string[]
+    alpha: number
+}
+
+export interface LogisticRegressionCoefficient {
+    term: string
+    odds_ratio: number | null
+    std_error: number | null
+    z_value: number | null
+    p_value: number | null
+    conf_low: number | null
+    conf_high: number | null
+}
+
+export interface LogisticRegressionResponse {
+    dataset_name: string
+    outcome_variable: string
+    event_level: string
+    reference_level: string
+    predictor_variables: string[]
+    sample_size: number
+    excluded_rows: number
+    alpha: number
+    pseudo_r_squared: number | null
+    aic: number | null
+    null_deviance: number | null
+    residual_deviance: number | null
+    df_model: number | null
+    df_residual: number | null
+    model_p_value: number | null
+    formula: string
+    assumptions: string[]
+    coefficients: LogisticRegressionCoefficient[]
+    note: string
+}
+
+export interface LassoRegressionRequest {
+    dataset_id: string
+    outcome_variable: string
+    predictor_variables: string[]
+    alpha: number
+    nfolds: number
+}
+
+export interface LassoFeatureResult {
+    term: string
+    coefficient_lambda_min: number | null
+    coefficient_lambda_1se: number | null
+    selected_at_lambda_min: boolean
+    selected_at_lambda_1se: boolean
+}
+
+export interface LassoPlotPayload {
+    name: string
+    filename: string
+    media_type: string
+    content_base64: string
+}
+
+export interface LassoRegressionResponse {
+    dataset_name: string
+    outcome_variable: string
+    predictor_variables: string[]
+    family: 'gaussian' | 'binomial'
+    event_level?: string | null
+    reference_level?: string | null
+    sample_size: number
+    excluded_rows: number
+    alpha: number
+    lambda_min: number
+    lambda_1se: number
+    nonzero_count_lambda_min: number
+    nonzero_count_lambda_1se: number
+    assumptions: string[]
+    selected_features: LassoFeatureResult[]
+    plots: LassoPlotPayload[]
+    note: string
+}
+
+export interface CoxRegressionRequest {
+    dataset_id: string
+    time_variable: string
+    event_variable: string
+    predictor_variables: string[]
+    alpha: number
+}
+
+export interface CoxRegressionCoefficient {
+    term: string
+    hazard_ratio: number | null
+    std_error: number | null
+    z_value: number | null
+    p_value: number | null
+    conf_low: number | null
+    conf_high: number | null
+}
+
+export interface CoxRegressionPhTest {
+    term: string
+    statistic: number | null
+    df: number | null
+    p_value: number | null
+}
+
+export interface CoxRegressionResponse {
+    dataset_name: string
+    time_variable: string
+    event_variable: string
+    event_level: string
+    reference_level: string
+    predictor_variables: string[]
+    sample_size: number
+    event_count: number
+    excluded_rows: number
+    alpha: number
+    concordance: number | null
+    concordance_std_error: number | null
+    likelihood_ratio_statistic: number | null
+    likelihood_ratio_df: number | null
+    likelihood_ratio_p_value: number | null
+    wald_statistic: number | null
+    wald_df: number | null
+    wald_p_value: number | null
+    score_statistic: number | null
+    score_df: number | null
+    score_p_value: number | null
+    global_ph_p_value: number | null
+    formula: string
+    assumptions: string[]
+    coefficients: CoxRegressionCoefficient[]
+    proportional_hazards_tests: CoxRegressionPhTest[]
+    note: string
+}
+
+export interface RegressionInterpretRequest {
+    dataset_id: string
+    analysis_kind: 'linear' | 'lasso' | 'logistic'
+    language: 'zh' | 'en'
+    payload: Record<string, unknown>
+}
+
+export interface RegressionExportRequest {
+    analysis_kind: 'linear' | 'lasso' | 'logistic'
+    payload: Record<string, unknown>
+}
+
+export interface LassoPlotPdfExportRequest {
+    dataset_id: string
+    plot: LassoPlotPayload
+}
+
+export interface RegressionInterpretResponse {
+    feature_name: string
+    analysis_kind: 'linear' | 'lasso' | 'logistic'
+    language: 'zh' | 'en'
+    model: string
+    content: string
+    analysis_id?: string | null
+    saved_at?: string | null
+    llm_tokens_used: number
+    charged_tokens: number
+    remaining_balance: number
+}
+
+export interface SavedRegressionInterpretResponse {
+    found: boolean
+    feature_name?: string | null
+    analysis_kind?: 'linear' | 'lasso' | 'logistic' | null
+    language?: 'zh' | 'en' | null
+    model?: string | null
+    content?: string | null
+    analysis_id?: string | null
+    saved_at?: string | null
+    llm_tokens_used: number
+    charged_tokens: number
 }
 
 export interface TableOneRequest {
@@ -391,10 +611,10 @@ export interface TableOneInterpretResponse {
     language: 'zh' | 'en'
     model: string
     content: string
-    prompt_tokens: number
-    completion_tokens: number
-    actual_tokens: number
-    billed_tokens: number
+    analysis_id?: string | null
+    saved_at?: string | null
+    llm_tokens_used: number
+    charged_tokens: number
     remaining_balance: number
 }
 
@@ -406,10 +626,8 @@ export interface SavedTableOneInterpretResponse {
     content?: string | null
     analysis_id?: string | null
     saved_at?: string | null
-    prompt_tokens: number
-    completion_tokens: number
-    actual_tokens: number
-    billed_tokens: number
+    llm_tokens_used: number
+    charged_tokens: number
 }
 
 export interface ReportListItem {
@@ -679,6 +897,26 @@ export async function runRepeatedMeasuresAnova(data: RepeatedMeasuresRequest) {
     return res.data as RepeatedMeasuresResponse
 }
 
+export async function runLinearRegression(data: LinearRegressionRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/linear-regression', data)
+    return res.data as LinearRegressionResponse
+}
+
+export async function runLogisticRegression(data: LogisticRegressionRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/logistic-regression', data)
+    return res.data as LogisticRegressionResponse
+}
+
+export async function runLassoRegression(data: LassoRegressionRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/lasso-regression', data)
+    return res.data as LassoRegressionResponse
+}
+
+export async function runCoxRegression(data: CoxRegressionRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/cox-regression', data)
+    return res.data as CoxRegressionResponse
+}
+
 export async function downloadTableOneExcel(data: TableOneRequest) {
     const res = await apiClient.post('/api/v1/descriptive/table1/export', data, {
         responseType: 'blob',
@@ -694,6 +932,30 @@ export async function interpretTableOne(data: TableOneInterpretRequest) {
 export async function getSavedTableOneInterpretation(data: TableOneInterpretRequest) {
     const res = await apiClient.post('/api/v1/descriptive/table1/interpret/saved', data)
     return res.data as SavedTableOneInterpretResponse
+}
+
+export async function interpretRegression(data: RegressionInterpretRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/regression/interpret', data)
+    return res.data as RegressionInterpretResponse
+}
+
+export async function getSavedRegressionInterpretation(data: RegressionInterpretRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/regression/interpret/saved', data)
+    return res.data as SavedRegressionInterpretResponse
+}
+
+export async function downloadRegressionExcel(data: RegressionExportRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/regression/export', data, {
+        responseType: 'blob',
+    })
+    return res.data as Blob
+}
+
+export async function downloadLassoPlotPdf(data: LassoPlotPdfExportRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/lasso-regression/plot/pdf', data, {
+        responseType: 'blob',
+    })
+    return res.data as Blob
 }
 
 export async function getReports() {

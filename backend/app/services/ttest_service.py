@@ -1,16 +1,16 @@
-"""Service for running independent-samples t-tests via R."""
+﻿"""Service for running independent-samples t-tests via R."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-import subprocess
 import tempfile
 
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from app.core.exceptions import BadRequest
+from app.services.r_runtime import run_rscript
 
 
 @dataclass
@@ -109,6 +109,7 @@ def run_ttest(
         summary_csv = temp_path / "summary.csv"
         normality_csv = temp_path / "normality.csv"
         groups_csv = temp_path / "groups.csv"
+        script_path = temp_path / "ttest.R"
 
         analysis_df.to_csv(input_csv, index=False, encoding="utf-8-sig")
         r_script = """
@@ -232,26 +233,20 @@ normality_df <- if (length(normality_rows)) do.call(rbind, normality_rows) else 
 write.csv(summary_df, summary_csv, row.names = FALSE)
 write.csv(normality_df, normality_csv, row.names = FALSE)
 """
-        try:
-            subprocess.run(
-                [
-                    "Rscript",
-                    "-e",
-                    r_script,
-                    str(input_csv),
-                    str(summary_csv),
-                    str(normality_csv),
-                    str(groups_csv),
-                    group_variable,
-                    str(alpha),
-                    "\t".join(continuous_variables),
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except (OSError, subprocess.CalledProcessError) as exc:
-            raise BadRequest("R t 检验执行失败，请确认本机已安装 Rscript 且数据格式正确") from exc
+        script_path.write_text(r_script, encoding="utf-8")
+        run_rscript(
+            [
+                str(script_path),
+                str(input_csv),
+                str(summary_csv),
+                str(normality_csv),
+                str(groups_csv),
+                group_variable,
+                str(alpha),
+                "\t".join(continuous_variables),
+            ],
+            "R t 检验执行失败",
+        )
 
         if not summary_csv.exists():
             raise BadRequest("R t 检验未返回结果")

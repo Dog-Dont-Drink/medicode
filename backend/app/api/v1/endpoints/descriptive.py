@@ -27,12 +27,31 @@ from app.schemas.descriptive import (
     ChiSquareRequest,
     ChiSquareResponse,
     ChiSquareVariableResult,
+    CoxRegressionCoefficient,
+    CoxRegressionPhTest,
+    CoxRegressionRequest,
+    CoxRegressionResponse,
+    LassoFeatureResult,
+    LassoPlotPayload,
+    LassoRegressionRequest,
+    LassoRegressionResponse,
+    LinearRegressionCoefficient,
+    LinearRegressionRequest,
+    LinearRegressionResponse,
+    LogisticRegressionCoefficient,
+    LogisticRegressionRequest,
+    LogisticRegressionResponse,
     RepeatedMeasuresEffectResult,
     RepeatedMeasuresRequest,
     RepeatedMeasuresResponse,
     RepeatedMeasuresTimeSummary,
     RepeatedMeasuresVariableResult,
+    LassoPlotPdfExportRequest,
+    RegressionExportRequest,
+    RegressionInterpretRequest,
+    RegressionInterpretResponse,
     SavedTableOneInterpretResponse,
+    SavedRegressionInterpretResponse,
     TableOneInterpretRequest,
     TableOneInterpretResponse,
     TableOneRequest,
@@ -47,6 +66,19 @@ from app.services.storage_service import storage_service
 from app.services.anova_service import run_anova
 from app.services.chisquare_service import run_chisquare
 from app.services.repeated_measures_service import run_repeated_measures_anova
+from app.services.regression_interpretation_service import (
+    FEATURE_NAME as REGRESSION_FEATURE_NAME,
+    build_regression_signature,
+    interpret_regression,
+)
+from app.services.regression_export_service import export_regression_excel
+from app.services.regression_pdf_service import export_lasso_plot_pdf
+from app.services.regression_service import (
+    run_cox_regression,
+    run_lasso_regression,
+    run_linear_regression,
+    run_logistic_regression,
+)
 from app.services.tableone_interpretation_service import FEATURE_NAME, build_tableone_signature, interpret_tableone
 from app.services.tableone_service import generate_tableone
 from app.services.ttest_service import run_ttest
@@ -97,6 +129,78 @@ async def _get_saved_interpretation(
         if configuration.get("table_signature") == signature:
             return analysis_result
     return None
+
+
+async def _get_saved_regression_interpretation(
+    db: AsyncSession,
+    dataset: Dataset,
+    current_user: User,
+    payload: RegressionInterpretRequest,
+) -> AnalysisResult | None:
+    signature = build_regression_signature(payload.analysis_kind, payload.payload, payload.language)
+    expected_analysis_type = f"{payload.analysis_kind}_regression_interpretation"
+    result = await db.execute(
+        select(Analysis, AnalysisResult)
+        .join(AnalysisResult, AnalysisResult.analysis_id == Analysis.id)
+        .where(
+            Analysis.project_id == dataset.project_id,
+            Analysis.dataset_id == dataset.id,
+            Analysis.created_by == current_user.id,
+            Analysis.analysis_type == expected_analysis_type,
+            Analysis.status == "completed",
+        )
+        .order_by(Analysis.executed_at.desc(), Analysis.created_at.desc())
+    )
+
+    for analysis, analysis_result in result.all():
+        configuration = analysis.configuration or {}
+        if configuration.get("regression_signature") == signature:
+            return analysis_result
+    return None
+
+
+def _ensure_paid_ai_interpretation_access(current_user: User) -> None:
+    if current_user.subscription not in PAID_SUBSCRIPTIONS:
+        raise Forbidden("AI结果解读为付费功能，请升级后使用")
+    if current_user.token_balance < 500:
+        raise BadRequest("Token 余额不足，AI结果解读至少需要 500 Token")
+
+
+async def _save_ai_interpretation_analysis(
+    *,
+    db: AsyncSession,
+    dataset: Dataset,
+    current_user: User,
+    analysis_name: str,
+    analysis_type: str,
+    configuration: dict,
+    result_data: dict,
+    tables: dict | None,
+    charged_tokens: int,
+    executed_at: datetime,
+) -> AnalysisResult:
+    analysis = Analysis(
+        project_id=dataset.project_id,
+        dataset_id=dataset.id,
+        name=analysis_name,
+        analysis_type=analysis_type,
+        configuration=configuration,
+        status="completed",
+        tokens_consumed=charged_tokens,
+        created_by=current_user.id,
+        executed_at=executed_at,
+    )
+    db.add(analysis)
+    await db.flush()
+
+    analysis_result = AnalysisResult(
+        analysis_id=analysis.id,
+        result_data=result_data,
+        tables=tables,
+    )
+    db.add(analysis_result)
+    await db.flush()
+    return analysis_result
 
 
 @router.post("/table1", response_model=TableOneResponse)
@@ -390,13 +494,16 @@ async def run_repeated_measures_anova_endpoint(
                 complete_subject_count=item.complete_subject_count,
                 excluded_subject_count=item.excluded_subject_count,
                 duplicate_pair_count=item.duplicate_pair_count,
+                residual_normality_statistic=item.residual_normality_statistic,
                 residual_normality_p_value=item.residual_normality_p_value,
                 residual_normality_passed=item.residual_normality_passed,
                 residual_normality_method=item.residual_normality_method,
+                time_sphericity_statistic=item.time_sphericity_statistic,
                 time_sphericity_p_value=item.time_sphericity_p_value,
                 time_sphericity_passed=item.time_sphericity_passed,
                 time_gg_epsilon=item.time_gg_epsilon,
                 time_hf_epsilon=item.time_hf_epsilon,
+                interaction_sphericity_statistic=item.interaction_sphericity_statistic,
                 interaction_sphericity_p_value=item.interaction_sphericity_p_value,
                 interaction_sphericity_passed=item.interaction_sphericity_passed,
                 interaction_gg_epsilon=item.interaction_gg_epsilon,
@@ -451,6 +558,266 @@ async def run_repeated_measures_anova_endpoint(
     )
 
 
+@router.post("/linear-regression", response_model=LinearRegressionResponse)
+async def run_linear_regression_endpoint(
+    payload: LinearRegressionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    content = await storage_service.download(dataset.file_path)
+    ext = f".{(dataset.file_format or '').lower()}".strip()
+    df = load_tabular_dataframe(content, ext)
+    kind_overrides = await get_dataset_kind_overrides(db, str(dataset.id))
+
+    result = run_linear_regression(
+        df=df,
+        dataset_name=dataset.name,
+        outcome_variable=payload.outcome_variable,
+        predictor_variables=payload.predictor_variables,
+        alpha=payload.alpha,
+        predictor_kind_overrides=kind_overrides,
+    )
+
+    return LinearRegressionResponse(
+        dataset_name=result.dataset_name,
+        outcome_variable=result.outcome_variable,
+        predictor_variables=result.predictor_variables,
+        sample_size=result.sample_size,
+        excluded_rows=result.excluded_rows,
+        alpha=result.alpha,
+        r_squared=result.r_squared,
+        adjusted_r_squared=result.adjusted_r_squared,
+        residual_standard_error=result.residual_standard_error,
+        f_statistic=result.f_statistic,
+        df_model=result.df_model,
+        df_residual=result.df_residual,
+        model_p_value=result.model_p_value,
+        formula=result.formula,
+        assumptions=result.assumptions,
+        coefficients=[
+            LinearRegressionCoefficient(
+                term=item.term,
+                estimate=item.estimate,
+                std_error=item.std_error,
+                statistic=item.statistic,
+                p_value=item.p_value,
+                conf_low=item.conf_low,
+                conf_high=item.conf_high,
+            )
+            for item in result.coefficients
+        ],
+        note=result.note,
+    )
+
+
+@router.post("/logistic-regression", response_model=LogisticRegressionResponse)
+async def run_logistic_regression_endpoint(
+    payload: LogisticRegressionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    content = await storage_service.download(dataset.file_path)
+    ext = f".{(dataset.file_format or '').lower()}".strip()
+    df = load_tabular_dataframe(content, ext)
+    kind_overrides = await get_dataset_kind_overrides(db, str(dataset.id))
+
+    result = run_logistic_regression(
+        df=df,
+        dataset_name=dataset.name,
+        outcome_variable=payload.outcome_variable,
+        predictor_variables=payload.predictor_variables,
+        alpha=payload.alpha,
+        predictor_kind_overrides=kind_overrides,
+    )
+
+    return LogisticRegressionResponse(
+        dataset_name=result.dataset_name,
+        outcome_variable=result.outcome_variable,
+        event_level=result.event_level,
+        reference_level=result.reference_level,
+        predictor_variables=result.predictor_variables,
+        sample_size=result.sample_size,
+        excluded_rows=result.excluded_rows,
+        alpha=result.alpha,
+        pseudo_r_squared=result.pseudo_r_squared,
+        aic=result.aic,
+        null_deviance=result.null_deviance,
+        residual_deviance=result.residual_deviance,
+        df_model=result.df_model,
+        df_residual=result.df_residual,
+        model_p_value=result.model_p_value,
+        formula=result.formula,
+        assumptions=result.assumptions,
+        coefficients=[
+            LogisticRegressionCoefficient(
+                term=item.term,
+                odds_ratio=item.odds_ratio,
+                std_error=item.std_error,
+                z_value=item.z_value,
+                p_value=item.p_value,
+                conf_low=item.conf_low,
+                conf_high=item.conf_high,
+            )
+            for item in result.coefficients
+        ],
+        note=result.note,
+    )
+
+
+@router.post("/lasso-regression", response_model=LassoRegressionResponse)
+async def run_lasso_regression_endpoint(
+    payload: LassoRegressionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    content = await storage_service.download(dataset.file_path)
+    ext = f".{(dataset.file_format or '').lower()}".strip()
+    df = load_tabular_dataframe(content, ext)
+    kind_overrides = await get_dataset_kind_overrides(db, str(dataset.id))
+
+    result = run_lasso_regression(
+        df=df,
+        dataset_name=dataset.name,
+        outcome_variable=payload.outcome_variable,
+        predictor_variables=payload.predictor_variables,
+        alpha=payload.alpha,
+        nfolds=payload.nfolds,
+        predictor_kind_overrides=kind_overrides,
+    )
+
+    return LassoRegressionResponse(
+        dataset_name=result.dataset_name,
+        outcome_variable=result.outcome_variable,
+        predictor_variables=result.predictor_variables,
+        family=result.family,
+        event_level=result.event_level,
+        reference_level=result.reference_level,
+        sample_size=result.sample_size,
+        excluded_rows=result.excluded_rows,
+        alpha=result.alpha,
+        lambda_min=result.lambda_min,
+        lambda_1se=result.lambda_1se,
+        nonzero_count_lambda_min=result.nonzero_count_lambda_min,
+        nonzero_count_lambda_1se=result.nonzero_count_lambda_1se,
+        assumptions=result.assumptions,
+        selected_features=[
+            LassoFeatureResult(
+                term=item.term,
+                coefficient_lambda_min=item.coefficient_lambda_min,
+                coefficient_lambda_1se=item.coefficient_lambda_1se,
+                selected_at_lambda_min=item.selected_at_lambda_min,
+                selected_at_lambda_1se=item.selected_at_lambda_1se,
+            )
+            for item in result.selected_features
+        ],
+        plots=[
+            LassoPlotPayload(
+                name=plot.name,
+                filename=plot.filename,
+                media_type=plot.media_type,
+                content_base64=plot.content_base64,
+            )
+            for plot in result.plots
+        ],
+        note=result.note,
+    )
+
+
+@router.post("/cox-regression", response_model=CoxRegressionResponse)
+async def run_cox_regression_endpoint(
+    payload: CoxRegressionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("Invalid dataset id") from exc
+
+    dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    content = await storage_service.download(dataset.file_path)
+    ext = f".{(dataset.file_format or '').lower()}".strip()
+    df = load_tabular_dataframe(content, ext)
+    kind_overrides = await get_dataset_kind_overrides(db, str(dataset.id))
+
+    result = run_cox_regression(
+        df=df,
+        dataset_name=dataset.name,
+        time_variable=payload.time_variable,
+        event_variable=payload.event_variable,
+        predictor_variables=payload.predictor_variables,
+        alpha=payload.alpha,
+        predictor_kind_overrides=kind_overrides,
+    )
+
+    return CoxRegressionResponse(
+        dataset_name=result.dataset_name,
+        time_variable=result.time_variable,
+        event_variable=result.event_variable,
+        event_level=result.event_level,
+        reference_level=result.reference_level,
+        predictor_variables=result.predictor_variables,
+        sample_size=result.sample_size,
+        event_count=result.event_count,
+        excluded_rows=result.excluded_rows,
+        alpha=result.alpha,
+        concordance=result.concordance,
+        concordance_std_error=result.concordance_std_error,
+        likelihood_ratio_statistic=result.likelihood_ratio_statistic,
+        likelihood_ratio_df=result.likelihood_ratio_df,
+        likelihood_ratio_p_value=result.likelihood_ratio_p_value,
+        wald_statistic=result.wald_statistic,
+        wald_df=result.wald_df,
+        wald_p_value=result.wald_p_value,
+        score_statistic=result.score_statistic,
+        score_df=result.score_df,
+        score_p_value=result.score_p_value,
+        global_ph_p_value=result.global_ph_p_value,
+        formula=result.formula,
+        assumptions=result.assumptions,
+        coefficients=[
+            CoxRegressionCoefficient(
+                term=item.term,
+                hazard_ratio=item.hazard_ratio,
+                std_error=item.std_error,
+                z_value=item.z_value,
+                p_value=item.p_value,
+                conf_low=item.conf_low,
+                conf_high=item.conf_high,
+            )
+            for item in result.coefficients
+        ],
+        proportional_hazards_tests=[
+            CoxRegressionPhTest(
+                term=item.term,
+                statistic=item.statistic,
+                df=item.df,
+                p_value=item.p_value,
+            )
+            for item in result.proportional_hazards_tests
+        ],
+        note=result.note,
+    )
+
+
 @router.post("/table1/export")
 async def export_tableone(
     payload: TableOneRequest,
@@ -487,6 +854,47 @@ async def export_tableone(
     )
 
 
+@router.post("/regression/export")
+async def export_regression_result(
+    payload: RegressionExportRequest,
+    current_user: User = Depends(get_current_user),
+):
+    del current_user
+    excel_content = export_regression_excel(payload.analysis_kind, payload.payload)
+    dataset_name = str(payload.payload.get("dataset_name") or "regression")
+    file_name = f"{Path(dataset_name).stem}_{payload.analysis_kind}_regression.xlsx"
+    encoded_file_name = quote(file_name)
+    return Response(
+        content=excel_content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}"},
+    )
+
+
+@router.post("/lasso-regression/plot/pdf")
+async def export_lasso_plot_pdf_result(
+    payload: LassoPlotPdfExportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.subscription not in PAID_SUBSCRIPTIONS:
+        raise Forbidden("PDF 下载为付费会员功能，请升级后使用")
+
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    await _get_dataset_for_user(dataset_uuid, current_user, db)
+    pdf_content, file_name = export_lasso_plot_pdf(payload.plot)
+    encoded_file_name = quote(file_name)
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}"},
+    )
+
+
 @router.post("/table1/interpret", response_model=TableOneInterpretResponse)
 async def interpret_tableone_result(
     payload: TableOneInterpretRequest,
@@ -494,10 +902,7 @@ async def interpret_tableone_result(
     db: AsyncSession = Depends(get_db),
 ):
     """Interpret Table 1 using an LLM for paid users."""
-    if current_user.subscription not in PAID_SUBSCRIPTIONS:
-        raise Forbidden("AI结果解读为付费功能，请升级后使用")
-    if current_user.token_balance < 500:
-        raise BadRequest("Token 余额不足，AI结果解读至少需要 500 Token")
+    _ensure_paid_ai_interpretation_access(current_user)
 
     try:
         dataset_uuid = uuid.UUID(payload.dataset_id)
@@ -506,20 +911,21 @@ async def interpret_tableone_result(
 
     dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
     interpretation = await interpret_tableone(payload.table, payload.language)
-    billed_tokens = calculate_ai_interpretation_charge(interpretation.total_tokens)
+    charged_tokens = calculate_ai_interpretation_charge(interpretation.llm_tokens_used)
     remaining_balance = await consume_user_tokens(
         db=db,
         user=current_user,
         operation="table1_interpretation",
-        billed_tokens=billed_tokens,
-        actual_tokens=interpretation.total_tokens,
+        billed_tokens=charged_tokens,
+        actual_tokens=interpretation.llm_tokens_used,
     )
     now = datetime.now(timezone.utc)
     signature = build_tableone_signature(payload.table, payload.language)
-    analysis = Analysis(
-        project_id=dataset.project_id,
-        dataset_id=dataset.id,
-        name=f"Table 1 AI结果解读 · {payload.table.group_variable}",
+    analysis_result = await _save_ai_interpretation_analysis(
+        db=db,
+        dataset=dataset,
+        current_user=current_user,
+        analysis_name=f"Table 1 AI???? ? {payload.table.group_variable}",
         analysis_type="table1_interpretation",
         configuration={
             "group_variable": payload.table.group_variable,
@@ -530,42 +936,28 @@ async def interpret_tableone_result(
             "language": payload.language,
             "table_signature": signature,
         },
-        status="completed",
-        tokens_consumed=billed_tokens,
-        created_by=current_user.id,
-        executed_at=now,
-    )
-    db.add(analysis)
-    await db.flush()
-
-    analysis_result = AnalysisResult(
-        analysis_id=analysis.id,
         result_data={
             "feature_name": FEATURE_NAME,
             "language": payload.language,
             "model": interpretation.model,
             "content": interpretation.content,
-            "prompt_tokens": interpretation.prompt_tokens,
-            "completion_tokens": interpretation.completion_tokens,
-            "actual_tokens": interpretation.total_tokens,
-            "billed_tokens": billed_tokens,
+            "llm_tokens_used": interpretation.llm_tokens_used,
+            "charged_tokens": charged_tokens,
         },
         tables={"table1": payload.table.model_dump()},
+        charged_tokens=charged_tokens,
+        executed_at=now,
     )
-    db.add(analysis_result)
-    await db.flush()
 
     return TableOneInterpretResponse(
         feature_name=FEATURE_NAME,
         language=payload.language,
         model=interpretation.model,
         content=interpretation.content,
-        analysis_id=str(analysis.id),
+        analysis_id=str(analysis_result.analysis_id),
         saved_at=analysis_result.created_at.isoformat() if analysis_result.created_at else now.isoformat(),
-        prompt_tokens=interpretation.prompt_tokens,
-        completion_tokens=interpretation.completion_tokens,
-        actual_tokens=interpretation.total_tokens,
-        billed_tokens=billed_tokens,
+        llm_tokens_used=interpretation.llm_tokens_used,
+        charged_tokens=charged_tokens,
         remaining_balance=remaining_balance,
     )
 
@@ -596,8 +988,102 @@ async def get_saved_tableone_interpretation(
         content=result_data.get("content"),
         analysis_id=str(saved.analysis_id),
         saved_at=saved.created_at.isoformat() if saved.created_at else None,
-        prompt_tokens=int(result_data.get("prompt_tokens") or 0),
-        completion_tokens=int(result_data.get("completion_tokens") or 0),
-        actual_tokens=int(result_data.get("actual_tokens") or 0),
-        billed_tokens=int(result_data.get("billed_tokens") or 0),
+        llm_tokens_used=int(result_data.get("llm_tokens_used") or result_data.get("actual_tokens") or 0),
+        charged_tokens=int(result_data.get("charged_tokens") or result_data.get("billed_tokens") or 0),
+    )
+
+
+@router.post("/regression/interpret", response_model=RegressionInterpretResponse)
+async def interpret_regression_result(
+    payload: RegressionInterpretRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _ensure_paid_ai_interpretation_access(current_user)
+
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    interpretation = await interpret_regression(payload.analysis_kind, payload.payload, payload.language)
+    charged_tokens = calculate_ai_interpretation_charge(interpretation.llm_tokens_used)
+    remaining_balance = await consume_user_tokens(
+        db=db,
+        user=current_user,
+        operation=f"{payload.analysis_kind}_regression_interpretation",
+        billed_tokens=charged_tokens,
+        actual_tokens=interpretation.llm_tokens_used,
+    )
+    now = datetime.now(timezone.utc)
+    signature = build_regression_signature(payload.analysis_kind, payload.payload, payload.language)
+    analysis_type = f"{payload.analysis_kind}_regression_interpretation"
+    analysis_result = await _save_ai_interpretation_analysis(
+        db=db,
+        dataset=dataset,
+        current_user=current_user,
+        analysis_name=f"{payload.analysis_kind} regression interpretation",
+        analysis_type=analysis_type,
+        configuration={
+            "analysis_kind": payload.analysis_kind,
+            "language": payload.language,
+            "regression_signature": signature,
+        },
+        result_data={
+            "feature_name": REGRESSION_FEATURE_NAME,
+            "analysis_kind": payload.analysis_kind,
+            "language": payload.language,
+            "model": interpretation.model,
+            "content": interpretation.content,
+            "llm_tokens_used": interpretation.llm_tokens_used,
+            "charged_tokens": charged_tokens,
+        },
+        tables={"regression": payload.payload},
+        charged_tokens=charged_tokens,
+        executed_at=now,
+    )
+
+    return RegressionInterpretResponse(
+        feature_name=REGRESSION_FEATURE_NAME,
+        analysis_kind=payload.analysis_kind,
+        language=payload.language,
+        model=interpretation.model,
+        content=interpretation.content,
+        analysis_id=str(analysis_result.analysis_id),
+        saved_at=analysis_result.created_at.isoformat() if analysis_result.created_at else now.isoformat(),
+        llm_tokens_used=interpretation.llm_tokens_used,
+        charged_tokens=charged_tokens,
+        remaining_balance=remaining_balance,
+    )
+
+
+@router.post("/regression/interpret/saved", response_model=SavedRegressionInterpretResponse)
+async def get_saved_regression_interpretation(
+    payload: RegressionInterpretRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    saved = await _get_saved_regression_interpretation(db, dataset, current_user, payload)
+    if not saved:
+        return SavedRegressionInterpretResponse(found=False)
+
+    result_data = saved.result_data or {}
+    return SavedRegressionInterpretResponse(
+        found=True,
+        feature_name=str(result_data.get("feature_name") or REGRESSION_FEATURE_NAME),
+        analysis_kind=result_data.get("analysis_kind") or payload.analysis_kind,
+        language=result_data.get("language") or payload.language,
+        model=result_data.get("model"),
+        content=result_data.get("content"),
+        analysis_id=str(saved.analysis_id),
+        saved_at=saved.created_at.isoformat() if saved.created_at else None,
+        llm_tokens_used=int(result_data.get("llm_tokens_used") or result_data.get("actual_tokens") or 0),
+        charged_tokens=int(result_data.get("charged_tokens") or result_data.get("billed_tokens") or 0),
     )

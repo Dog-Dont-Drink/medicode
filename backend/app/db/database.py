@@ -32,7 +32,7 @@ def _build_database_url(raw_url: str) -> URL:
 
 database_url = _build_database_url(settings.DATABASE_URL)
 engine_kwargs = {
-    "echo": settings.APP_ENV == "development",
+    "echo": settings.DATABASE_ECHO,
     "pool_pre_ping": True,
 }
 

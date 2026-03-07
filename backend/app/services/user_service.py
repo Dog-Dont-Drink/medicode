@@ -16,7 +16,7 @@ SUBSCRIPTION_BY_PACKAGE = {
     "pro": "pro",
     "enterprise": "enterprise",
 }
-AI_INTERPRETATION_BASE_FEE = 500
+AI_INTERPRETATION_BASE_FEE = 1000
 AI_INTERPRETATION_MULTIPLIER = 1.8
 
 
@@ -117,9 +117,9 @@ async def get_balance(db: AsyncSession, user_id: str) -> dict:
     }
 
 
-def calculate_ai_interpretation_charge(actual_tokens: int) -> int:
-    normalized_actual_tokens = max(int(actual_tokens), 0)
-    return int(math.ceil(AI_INTERPRETATION_BASE_FEE + normalized_actual_tokens * AI_INTERPRETATION_MULTIPLIER))
+def calculate_ai_interpretation_charge(llm_tokens_used: int) -> int:
+    normalized_llm_tokens = max(int(llm_tokens_used), 0)
+    return int(math.ceil(normalized_llm_tokens * AI_INTERPRETATION_MULTIPLIER + AI_INTERPRETATION_BASE_FEE))
 
 
 async def consume_user_tokens(

@@ -310,7 +310,7 @@
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
                   <span v-if="interpretationBilledTokens" class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-700">
-                    本次扣减 {{ interpretationBilledTokens }} tokens
+                    本次消耗 {{ interpretationBilledTokens }} tokens
                   </span>
                   <span v-if="interpretationRemainingBalance !== null" class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[11px] text-amber-700">
                     剩余 {{ interpretationRemainingBalance }} tokens
@@ -411,7 +411,12 @@ const continuousVariableOptions = computed(() =>
 
 const categoricalVariableOptions = computed(() =>
   (datasetSummary.value?.columns || []).filter(
-    (column) => (column.kind === 'categorical' || column.kind === 'boolean') && column.name !== groupVariable.value,
+    (column) =>
+      (column.kind === 'categorical' || column.kind === 'boolean') &&
+      column.name !== groupVariable.value &&
+      column.unique_count >= 2 &&
+      column.unique_count <= 20 &&
+      (!column.non_null_count || column.unique_count / column.non_null_count < 0.5),
   ),
 )
 
@@ -647,8 +652,8 @@ async function loadSavedInterpretation() {
 
     interpretationContent.value = saved.content || ''
     interpretationModel.value = saved.model || ''
-    interpretationActualTokens.value = saved.actual_tokens || 0
-    interpretationBilledTokens.value = saved.billed_tokens || 0
+    interpretationActualTokens.value = saved.llm_tokens_used || saved.actual_tokens || 0
+    interpretationBilledTokens.value = saved.charged_tokens || saved.billed_tokens || 0
     interpretationRemainingBalance.value = null
     interpretationSavedAt.value = saved.saved_at || ''
     copiedInterpretation.value = false
@@ -718,8 +723,8 @@ async function interpretResult() {
     })
     interpretationContent.value = result.content
     interpretationModel.value = result.model
-    interpretationActualTokens.value = result.actual_tokens
-    interpretationBilledTokens.value = result.billed_tokens
+    interpretationActualTokens.value = result.llm_tokens_used || result.actual_tokens || 0
+    interpretationBilledTokens.value = result.charged_tokens || result.billed_tokens || 0
     interpretationRemainingBalance.value = result.remaining_balance
     interpretationSavedAt.value = result.saved_at || ''
     if (authStore.user) {
