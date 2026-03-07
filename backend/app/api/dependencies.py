@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import jwt as pyjwt
 
 from app.core.config import get_settings
-from app.core.exceptions import Unauthorized
+from app.core.exceptions import Forbidden, Unauthorized
 from app.core.security import decode_token
 from app.db.database import get_db
 from app.db.models.user import User
@@ -49,3 +49,12 @@ async def get_current_user(
         raise Unauthorized("账号已禁用")
 
     return user
+
+
+async def get_current_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Ensure current user is an administrator."""
+    if current_user.role != "admin":
+        raise Forbidden("仅管理员可访问后台")
+    return current_user

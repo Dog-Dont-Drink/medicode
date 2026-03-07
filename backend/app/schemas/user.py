@@ -8,6 +8,7 @@ class UserProfile(BaseModel):
     id: str
     name: str
     email: str
+    role: str = "user"
     phone: str | None = None
     title: str | None = None
     institution: str | None = None
@@ -16,6 +17,8 @@ class UserProfile(BaseModel):
     avatar_url: str | None = None
     token_balance: int = 0
     subscription: str = "free"
+    is_verified: bool = False
+    is_active: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -41,3 +44,4 @@ class BalanceResponse(BaseModel):
     balance: int
     plan: str
     used_this_month: int
+    actual_used_this_month: int = 0

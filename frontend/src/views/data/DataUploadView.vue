@@ -1,8 +1,11 @@
 <template>
   <div class="space-y-6 animate-fade-in">
-    <div>
-      <h1 class="text-2xl font-heading font-bold text-gray-900">数据上传</h1>
-      <p class="text-gray-500 mt-1">上传您的数据文件开始分析</p>
+    <div class="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-5 py-4">
+      <p class="text-sm font-semibold text-emerald-900">上传前请先完成数据脱敏</p>
+      <p class="mt-1 text-sm leading-6 text-emerald-800">
+        为保护患者隐私，建议您在上传前隐藏或提前删除姓名、身份证号、手机号、住址、住院号等可直接识别个人身份的关键信息，
+        并尽量避免上传能够反向定位患者身份的敏感字段。平台会对您上传的数据严格保密，仅用于您授权的分析处理。
+      </p>
     </div>
 
     <div class="card">

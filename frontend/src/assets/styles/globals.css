@@ -255,7 +255,7 @@
 
 .slide-up-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(10px);
 }
 
 .slide-right-enter-active,

@@ -35,4 +35,5 @@ class TokenUsage(Base):
     analysis_id: Mapped[Optional[uuid.UUID]] = mapped_column(GUID(), ForeignKey("analyses.id"), nullable=True)
     operation: Mapped[str] = mapped_column(String(50), nullable=False)
     tokens_consumed: Mapped[int] = mapped_column(Integer, nullable=False)
+    actual_tokens_consumed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

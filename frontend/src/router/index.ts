@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import api from '@/services/api'
 
 const routes: RouteRecordRaw[] = [
     // Home / Landing page (standalone, no layout)
@@ -15,9 +16,25 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/layouts/AuthLayout.vue'),
         children: [
             { path: 'login', name: 'Login', component: () => import('@/views/auth/LoginView.vue') },
+            { path: 'admin-login', name: 'AdminLoginAlias', component: () => import('@/views/auth/AdminLoginView.vue') },
             { path: 'register', name: 'Register', component: () => import('@/views/auth/RegisterView.vue') },
             { path: 'forgot-password', name: 'ForgotPassword', component: () => import('@/views/auth/ForgotPasswordView.vue') },
             { path: 'verify-email', name: 'VerifyEmail', component: () => import('@/views/auth/EmailVerifyView.vue') },
+        ],
+    },
+    {
+        path: '/admin/login',
+        name: 'AdminLogin',
+        component: () => import('@/views/auth/AdminLoginView.vue'),
+    },
+    {
+        path: '/admin',
+        component: () => import('@/layouts/AdminLayout.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true },
+        children: [
+            { path: '', name: 'AdminDashboard', component: () => import('@/views/admin/AdminDashboardView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+            { path: 'users', name: 'AdminUsers', component: () => import('@/views/admin/AdminUsersView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+            { path: 'tables/:tableName?', name: 'AdminTables', component: () => import('@/views/admin/AdminTablesView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
         ],
     },
 
@@ -32,16 +49,22 @@ const routes: RouteRecordRaw[] = [
             { path: 'projects', name: 'Projects', component: () => import('@/views/project/ProjectListView.vue'), meta: { requiresAuth: true } },
             { path: 'projects/:projectId', name: 'ProjectDetail', component: () => import('@/views/project/ProjectDetailView.vue'), meta: { requiresAuth: true } },
 
-            // Data management (merged upload + preview)
-            { path: 'data', name: 'DataManagement', component: () => import('@/views/data/DataView.vue'), meta: { requiresAuth: true } },
+            // Data management
+            { path: 'data', name: 'DataUpload', component: () => import('@/views/data/DataView.vue'), meta: { requiresAuth: true } },
+            { path: 'data/cleaning', name: 'DataCleaning', component: () => import('@/views/data/DataCleaningView.vue'), meta: { requiresAuth: true } },
             { path: 'data/dictionary', name: 'DataDictionary', component: () => import('@/views/data/DataDictionaryView.vue'), meta: { requiresAuth: true } },
 
             // Analysis
             { path: 'analysis', name: 'AnalysisList', component: () => import('@/views/analysis/AnalysisListView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/descriptive', name: 'DescriptiveTable', component: () => import('@/views/analysis/DescriptiveTableView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/t-test', name: 'TTest', component: () => import('@/views/analysis/TTestView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/anova', name: 'Anova', component: () => import('@/views/analysis/AnovaView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/repeated-measures-anova', name: 'RepeatedMeasuresAnova', component: () => import('@/views/analysis/RepeatedMeasuresAnovaView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/chi-square', name: 'ChiSquare', component: () => import('@/views/analysis/ChiSquareView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/new', name: 'AnalysisCreate', component: () => import('@/views/analysis/AnalysisCreateView.vue'), meta: { requiresAuth: true } },
 
             // Reports
-            { path: 'reports', name: 'Reports', component: () => import('@/views/analysis/AnalysisListView.vue'), meta: { requiresAuth: true } },
+            { path: 'reports', name: 'Reports', component: () => import('@/views/report/ReportsView.vue'), meta: { requiresAuth: true } },
 
             // Account
             { path: 'account/profile', name: 'Profile', component: () => import('@/views/account/ProfileView.vue'), meta: { requiresAuth: true } },
@@ -65,13 +88,40 @@ const router = createRouter({
 })
 
 // Navigation guard
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     const token = localStorage.getItem('auth_token')
     if (to.meta.requiresAuth && !token) {
-        next({ name: 'Login', query: { redirect: to.fullPath } })
-    } else {
-        next()
+        next(
+            to.meta.requiresAdmin
+                ? { name: 'AdminLogin' }
+                : { name: 'Login', query: { redirect: to.fullPath } }
+        )
+        return
     }
+
+    if (to.meta.requiresAdmin) {
+        let role = localStorage.getItem('auth_user_role')
+
+        if (!role && token) {
+            try {
+                const res = await api.get('/api/v1/users/profile')
+                role = res.data?.role || 'user'
+                localStorage.setItem('auth_user_role', role)
+            } catch {
+                localStorage.removeItem('auth_token')
+                localStorage.removeItem('auth_user_role')
+                next({ name: 'AdminLogin' })
+                return
+            }
+        }
+
+        if (role !== 'admin') {
+            next({ name: token ? 'Dashboard' : 'AdminLogin' })
+            return
+        }
+    }
+
+    next()
 })
 
 export default router

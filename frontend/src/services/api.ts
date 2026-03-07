@@ -65,6 +65,450 @@ export interface TokenBalanceResponse {
     balance: number
     plan: string
     used_this_month: number
+    actual_used_this_month: number
+}
+
+export interface DatasetItem {
+    id: string
+    name: string
+    file_size: number | null
+    file_format: string | null
+    row_count: number | null
+    column_count: number | null
+    created_at: string
+}
+
+export interface DatasetPreviewResponse {
+    columns: string[]
+    rows: Record<string, string | number | boolean | null>[]
+    total_rows: number
+    total_columns: number
+}
+
+export interface DatasetValueFrequency {
+    value: string
+    count: number
+    ratio: number
+}
+
+export interface DatasetColumnSummary {
+    name: string
+    kind: 'numeric' | 'categorical' | 'datetime' | 'boolean'
+    kind_source?: 'auto' | 'manual'
+    non_null_count: number
+    missing_count: number
+    missing_rate: number
+    unique_count: number
+    sample_values: string[]
+    numeric_min: number | null
+    numeric_max: number | null
+    numeric_mean: number | null
+    numeric_std: number | null
+    numeric_median: number | null
+    numeric_q1: number | null
+    numeric_q3: number | null
+    datetime_min: string | null
+    datetime_max: string | null
+    top_values: DatasetValueFrequency[] | null
+}
+
+export interface DatasetSummaryResponse {
+    total_rows: number
+    total_columns: number
+    numeric_columns: number
+    categorical_columns: number
+    datetime_columns: number
+    boolean_columns: number
+    complete_rows: number
+    duplicate_rows: number
+    missing_cells: number
+    missing_rate: number
+    columns: DatasetColumnSummary[]
+}
+
+export interface DatasetColumnKindUpdateRequest {
+    kind: 'auto' | 'con' | 'cat' | 'continuous' | 'categorical' | 'numeric'
+}
+
+export interface DatasetColumnKindUpdateResponse {
+    column_name: string
+    kind: 'numeric' | 'categorical' | 'datetime' | 'boolean'
+    kind_source: 'auto' | 'manual'
+}
+
+export interface DatasetCleaningRequest {
+    outlier_strategy: 'none' | 'clip_iqr' | 'remove_rows'
+    outlier_factor: number
+    outlier_columns: string[]
+    drop_high_missing_columns: boolean
+    missing_column_threshold: number
+    missing_drop_columns: string[]
+    numeric_missing_strategy: 'none' | 'mean' | 'median' | 'multiple_imputation'
+    numeric_missing_columns: string[]
+    categorical_missing_strategy: 'none' | 'mode' | 'unknown'
+    categorical_missing_columns: string[]
+    scaling_strategy: 'none' | 'normalize' | 'standardize' | 'center'
+    scaling_columns: string[]
+    categorical_encoding: 'none' | 'one_hot'
+    encoding_columns: string[]
+    output_name?: string
+}
+
+export interface DatasetCleaningResult {
+    dataset: DatasetItem
+    original_rows: number
+    original_columns: number
+    cleaned_rows: number
+    cleaned_columns: number
+    removed_rows: number
+    removed_columns: number
+    numeric_imputed_cells: number
+    categorical_imputed_cells: number
+    encoded_columns_added: number
+    operations: string[]
+}
+
+export interface TTestRequest {
+    dataset_id: string
+    group_variable: string
+    continuous_variables: string[]
+    alpha: number
+    confirm_independence: boolean
+}
+
+export interface TTestGroupSummary {
+    group: string
+    n: number
+    mean: number | null
+    sd: number | null
+    median: number | null
+    q1: number | null
+    q3: number | null
+}
+
+export interface TTestNormalityCheck {
+    group: string
+    n: number
+    p_value: number | null
+    passed: boolean
+    method: string
+}
+
+export interface TTestVariableResult {
+    variable: string
+    group_summaries: TTestGroupSummary[]
+    normality_checks: TTestNormalityCheck[]
+    variance_test_name: string
+    variance_p_value: number | null
+    equal_variance: boolean | null
+    satisfies_t_test: boolean
+    recommended_test: string
+    executed_test: string
+    statistic: number | null
+    df: number | null
+    p_value: number | null
+    estimate: number | null
+    conf_low: number | null
+    conf_high: number | null
+    note: string
+}
+
+export interface TTestResponse {
+    dataset_name: string
+    group_variable: string
+    group_levels: string[]
+    alpha: number
+    confirm_independence: boolean
+    assumptions: string[]
+    variables: TTestVariableResult[]
+}
+
+export interface AnovaRequest {
+    dataset_id: string
+    group_variable: string
+    continuous_variables: string[]
+    alpha: number
+    confirm_independence: boolean
+}
+
+export interface AnovaVariableResult {
+    variable: string
+    group_summaries: TTestGroupSummary[]
+    normality_checks: TTestNormalityCheck[]
+    variance_test_name: string
+    variance_p_value: number | null
+    equal_variance: boolean | null
+    satisfies_anova: boolean
+    recommended_test: string
+    executed_test: string
+    statistic: number | null
+    df_between: number | null
+    df_within: number | null
+    p_value: number | null
+    note: string
+}
+
+export interface AnovaResponse {
+    dataset_name: string
+    group_variable: string
+    group_levels: string[]
+    alpha: number
+    confirm_independence: boolean
+    assumptions: string[]
+    variables: AnovaVariableResult[]
+}
+
+export interface ChiSquareRequest {
+    dataset_id: string
+    group_variable: string
+    categorical_variables: string[]
+    alpha: number
+    confirm_independence: boolean
+}
+
+export interface ChiSquareLevelRow {
+    level: string
+    group_values: string[]
+}
+
+export interface ChiSquareVariableResult {
+    variable: string
+    level_rows: ChiSquareLevelRow[]
+    minimum_expected_count: number | null
+    expected_count_warning: boolean
+    recommended_test: string
+    executed_test: string
+    statistic: number | null
+    df: number | null
+    p_value: number | null
+    note: string
+}
+
+export interface ChiSquareResponse {
+    dataset_name: string
+    group_variable: string
+    group_levels: string[]
+    alpha: number
+    confirm_independence: boolean
+    assumptions: string[]
+    variables: ChiSquareVariableResult[]
+}
+
+export interface RepeatedMeasuresRequest {
+    dataset_id: string
+    subject_variable: string
+    between_variable?: string | null
+    time_variable: string
+    continuous_variables: string[]
+    alpha: number
+    confirm_repeated_design: boolean
+}
+
+export interface RepeatedMeasuresEffectResult {
+    statistic: number | null
+    df_effect: number | null
+    df_error: number | null
+    p_value: number | null
+    corrected: boolean
+}
+
+export interface RepeatedMeasuresTimeSummary {
+    time_level: string
+    group_level: string | null
+    n: number
+    mean: number | null
+    sd: number | null
+    median: number | null
+    q1: number | null
+    q3: number | null
+}
+
+export interface RepeatedMeasuresVariableResult {
+    variable: string
+    complete_subject_count: number
+    excluded_subject_count: number
+    duplicate_pair_count: number
+    residual_normality_p_value: number | null
+    residual_normality_passed: boolean
+    residual_normality_method: string
+    time_sphericity_p_value: number | null
+    time_sphericity_passed: boolean | null
+    time_gg_epsilon: number | null
+    time_hf_epsilon: number | null
+    interaction_sphericity_p_value: number | null
+    interaction_sphericity_passed: boolean | null
+    interaction_gg_epsilon: number | null
+    interaction_hf_epsilon: number | null
+    executed_test: string
+    note: string
+    time_summaries: RepeatedMeasuresTimeSummary[]
+    time_effect: RepeatedMeasuresEffectResult
+    between_effect: RepeatedMeasuresEffectResult | null
+    interaction_effect: RepeatedMeasuresEffectResult | null
+}
+
+export interface RepeatedMeasuresResponse {
+    dataset_name: string
+    subject_variable: string
+    between_variable?: string | null
+    between_levels: string[]
+    time_variable: string
+    time_levels: string[]
+    alpha: number
+    confirm_repeated_design: boolean
+    assumptions: string[]
+    variables: RepeatedMeasuresVariableResult[]
+}
+
+export interface TableOneRequest {
+    dataset_id: string
+    group_variable: string
+    variables: string[]
+    decimals?: number
+}
+
+export interface TableOneResponse {
+    title: string
+    dataset_name: string
+    group_variable: string
+    group_levels: string[]
+    headers: string[]
+    rows: string[][]
+    continuous_variables: string[]
+    categorical_variables: string[]
+    nonnormal_variables: string[]
+    normality_method: string
+}
+
+export interface TableOneInterpretRequest {
+    dataset_id: string
+    language: 'zh' | 'en'
+    table: TableOneResponse
+}
+
+export interface TableOneInterpretResponse {
+    feature_name: string
+    language: 'zh' | 'en'
+    model: string
+    content: string
+    prompt_tokens: number
+    completion_tokens: number
+    actual_tokens: number
+    billed_tokens: number
+    remaining_balance: number
+}
+
+export interface SavedTableOneInterpretResponse {
+    found: boolean
+    feature_name?: string | null
+    language?: 'zh' | 'en' | null
+    model?: string | null
+    content?: string | null
+    analysis_id?: string | null
+    saved_at?: string | null
+    prompt_tokens: number
+    completion_tokens: number
+    actual_tokens: number
+    billed_tokens: number
+}
+
+export interface ReportListItem {
+    analysis_id: string
+    name: string
+    analysis_type: string
+    status: string
+    project_id: string
+    project_name: string
+    dataset_id?: string | null
+    dataset_name?: string | null
+    feature_name?: string | null
+    language?: 'zh' | 'en' | null
+    model?: string | null
+    group_variable?: string | null
+    content?: string | null
+    prompt_tokens: number
+    completion_tokens: number
+    actual_tokens: number
+    billed_tokens: number
+    created_at: string
+    executed_at?: string | null
+}
+
+export interface AdminOverviewMetric {
+    label: string
+    value: number | string
+    hint?: string | null
+}
+
+export interface AdminDailyMetric {
+    date: string
+    users: number
+    token_consumed: number
+}
+
+export interface AdminDashboardResponse {
+    overview: AdminOverviewMetric[]
+    daily_metrics: AdminDailyMetric[]
+    recent_signups: number
+    today_token_consumed: number
+    today_actual_token_consumed: number
+    paid_orders_total: string
+}
+
+export interface AdminUserItem {
+    id: string
+    name: string
+    email: string
+    role: 'user' | 'admin'
+    subscription: string
+    token_balance: number
+    is_verified: boolean
+    is_active: boolean
+    institution?: string | null
+    title?: string | null
+    created_at: string
+    last_login_at?: string | null
+    project_count: number
+    dataset_count: number
+    billed_tokens_this_month: number
+    actual_tokens_this_month: number
+}
+
+export interface AdminUserUpdateRequest {
+    name?: string
+    email?: string
+    role?: 'user' | 'admin'
+    subscription?: string
+    token_balance?: number
+    is_active?: boolean
+    is_verified?: boolean
+    institution?: string
+    title?: string
+}
+
+export interface AdminTableInfo {
+    name: string
+    label: string
+    row_count: number
+}
+
+export interface AdminTableListResponse {
+    tables: AdminTableInfo[]
+}
+
+export interface AdminTableColumn {
+    name: string
+    type: string
+    nullable: boolean
+    primary_key: boolean
+}
+
+export interface AdminTableRowsResponse {
+    table_name: string
+    primary_key: string
+    columns: AdminTableColumn[]
+    rows: Record<string, any>[]
+    total: number
 }
 
 /**
@@ -162,16 +606,139 @@ export async function createProject(data: any) {
 // ========================
 export async function getDatasets(projectId: string) {
     const res = await apiClient.get('/api/v1/datasets', { params: { project_id: projectId } })
-    return res.data
+    return res.data as DatasetItem[]
 }
 
-export async function uploadDataset(data: FormData) {
+export async function uploadDataset(
+    data: FormData,
+    onProgress?: (loaded: number, total?: number) => void,
+) {
     const res = await apiClient.post('/api/v1/datasets/upload', data, {
         headers: {
             'Content-Type': 'multipart/form-data'
-        }
+        },
+        onUploadProgress: (event) => {
+            onProgress?.(event.loaded, event.total)
+        },
     })
-    return res.data
+    return res.data as DatasetItem
+}
+
+export async function getDatasetPreview(datasetId: string, rows = 5) {
+    const res = await apiClient.get(`/api/v1/datasets/${datasetId}/preview`, {
+        params: { rows }
+    })
+    return res.data as DatasetPreviewResponse
+}
+
+export async function getDatasetSummary(datasetId: string) {
+    const res = await apiClient.get(`/api/v1/datasets/${datasetId}/summary`)
+    return res.data as DatasetSummaryResponse
+}
+
+export async function updateDatasetColumnKind(datasetId: string, columnName: string, data: DatasetColumnKindUpdateRequest) {
+    const encodedColumn = encodeURIComponent(columnName)
+    const res = await apiClient.put(`/api/v1/datasets/${datasetId}/columns/${encodedColumn}/kind`, data)
+    return res.data as DatasetColumnKindUpdateResponse
+}
+
+export async function cleanDataset(datasetId: string, data: DatasetCleaningRequest) {
+    const res = await apiClient.post(`/api/v1/datasets/${datasetId}/clean`, data)
+    return res.data as DatasetCleaningResult
+}
+
+export async function downloadDataset(datasetId: string) {
+    const res = await apiClient.get(`/api/v1/datasets/${datasetId}/download`, {
+        responseType: 'blob',
+    })
+    return res.data as Blob
+}
+
+export async function generateTableOne(data: TableOneRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/table1', data)
+    return res.data as TableOneResponse
+}
+
+export async function runTTest(data: TTestRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/ttest', data)
+    return res.data as TTestResponse
+}
+
+export async function runAnova(data: AnovaRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/anova', data)
+    return res.data as AnovaResponse
+}
+
+export async function runChiSquare(data: ChiSquareRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/chisquare', data)
+    return res.data as ChiSquareResponse
+}
+
+export async function runRepeatedMeasuresAnova(data: RepeatedMeasuresRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/repeated-measures-anova', data)
+    return res.data as RepeatedMeasuresResponse
+}
+
+export async function downloadTableOneExcel(data: TableOneRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/table1/export', data, {
+        responseType: 'blob',
+    })
+    return res.data as Blob
+}
+
+export async function interpretTableOne(data: TableOneInterpretRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/table1/interpret', data)
+    return res.data as TableOneInterpretResponse
+}
+
+export async function getSavedTableOneInterpretation(data: TableOneInterpretRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/table1/interpret/saved', data)
+    return res.data as SavedTableOneInterpretResponse
+}
+
+export async function getReports() {
+    const res = await apiClient.get('/api/v1/reports')
+    return res.data as ReportListItem[]
+}
+
+export async function getAdminDashboard() {
+    const res = await apiClient.get('/api/v1/admin/dashboard')
+    return res.data as AdminDashboardResponse
+}
+
+export async function getAdminUsers() {
+    const res = await apiClient.get('/api/v1/admin/users')
+    return res.data as AdminUserItem[]
+}
+
+export async function updateAdminUser(userId: string, data: AdminUserUpdateRequest) {
+    const res = await apiClient.put(`/api/v1/admin/users/${userId}`, data)
+    return res.data as AdminUserItem
+}
+
+export async function getAdminTables() {
+    const res = await apiClient.get('/api/v1/admin/tables')
+    return res.data as AdminTableListResponse
+}
+
+export async function getAdminTableRows(tableName: string, limit = 50) {
+    const res = await apiClient.get(`/api/v1/admin/tables/${tableName}`, { params: { limit } })
+    return res.data as AdminTableRowsResponse
+}
+
+export async function updateAdminTableRow(tableName: string, rowId: string, values: Record<string, any>) {
+    const res = await apiClient.put(`/api/v1/admin/tables/${tableName}/rows/${rowId}`, { values })
+    return res.data as { success: boolean; row: Record<string, any> }
+}
+
+export async function deleteAdminTableRow(tableName: string, rowId: string) {
+    const res = await apiClient.delete(`/api/v1/admin/tables/${tableName}/rows/${rowId}`)
+    return res.data as { success: boolean }
+}
+
+export async function deleteDataset(datasetId: string) {
+    const res = await apiClient.delete(`/api/v1/datasets/${datasetId}`)
+    return res.data as { success: boolean }
 }
 
 export default apiClient

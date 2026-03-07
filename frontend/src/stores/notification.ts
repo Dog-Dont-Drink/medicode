@@ -16,7 +16,7 @@ export const useNotificationStore = defineStore('notification', () => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
         const n = { ...notification, id }
         notifications.value.push(n)
-        const duration = notification.duration ?? 4000
+        const duration = notification.duration ?? 3000
         if (duration > 0) {
             setTimeout(() => remove(id), duration)
         }

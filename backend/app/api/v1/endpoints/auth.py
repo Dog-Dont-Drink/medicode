@@ -56,6 +56,12 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         return {"error": "邮箱未验证", "need_verify": True, "email": body.email}
 
 
+@router.post("/admin-login", response_model=TokenResponse)
+async def admin_login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """管理员登录"""
+    return await auth_service.admin_login(db, body.email, body.password)
+
+
 @router.post("/reset-password")
 async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
     """重置密码"""

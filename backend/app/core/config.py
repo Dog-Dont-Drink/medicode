@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings
 
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+DEFAULT_SQLITE_PATH = ENV_FILE.parent / "medicode.db"
 
 
 class Settings(BaseSettings):
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres.hjuszhymikglmamncdko:XkNJxaWJnjzY6dKZ@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_SQLITE_PATH.as_posix()}"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -28,7 +29,10 @@ class Settings(BaseSettings):
     JWT_REFRESH_EXPIRE_DAYS: int = 90
 
     # Storage
+    STORAGE_BACKEND: str = "local"
     STORAGE_BUCKET: str = "medicode-files"
+    LOCAL_STORAGE_DIR: str = str(ENV_FILE.parent / "uploads")
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     SUPABASE_PUBLISHABLE_KEY: str = ""
@@ -38,7 +42,7 @@ class Settings(BaseSettings):
     ALIPAY_PRIVATE_KEY: str = ""
     ALIPAY_PUBLIC_KEY: str = ""
     ALIPAY_NOTIFY_URL: str = ""
-    ALIPAY_SANDBOX: bool = True
+    ALIPAY_SANDBOX: bool = False
 
     # SMTP
     SMTP_SERVER: str = "smtp.163.com"
@@ -50,6 +54,12 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+
+    # LLM
+    LLM_API_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = "gpt-4.1-mini"
+    LLM_TIMEOUT_SECONDS: int = 60
 
     model_config = {"env_file": str(ENV_FILE), "env_file_encoding": "utf-8"}
 
