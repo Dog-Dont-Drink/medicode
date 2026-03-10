@@ -23,6 +23,8 @@ env/
 .coverage
 htmlcov/
 medicode.db
+*.db
+backend/*.db
 
 # OS
 .DS_Store
