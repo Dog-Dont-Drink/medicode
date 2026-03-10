@@ -61,6 +61,7 @@ class UserBrief(BaseModel):
     email: str
     avatar_url: str | None = None
     role: str = "user"
+    resource_balance: int = 0
     token_balance: int = 0
     subscription: str = "free"
     is_verified: bool = False

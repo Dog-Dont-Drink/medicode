@@ -16,6 +16,8 @@ from app.core.security import (
 )
 from app.db.models.user import User, VerificationCode
 from app.services.email_service import send_verification_email
+from app.services.resource_service import resource_fields
+from app.services.user_service import get_default_resource_balance
 
 
 def _random_code() -> str:
@@ -29,7 +31,7 @@ def _serialize_user(user: User) -> dict:
         "email": user.email,
         "avatar_url": user.avatar_url,
         "role": user.role,
-        "token_balance": user.token_balance,
+        **resource_fields(int(user.token_balance or 0)),
         "subscription": user.subscription,
         "is_verified": user.is_verified,
     }
@@ -150,7 +152,7 @@ async def register(db: AsyncSession, name: str, email: str, password: str, code:
         existing_user.name = name
         existing_user.password_hash = hash_password(password)
         existing_user.is_verified = True
-        existing_user.token_balance = 100
+        existing_user.token_balance = get_default_resource_balance()
         existing_user.updated_at = datetime.now(timezone.utc)
         user = existing_user
     else:
@@ -159,7 +161,7 @@ async def register(db: AsyncSession, name: str, email: str, password: str, code:
             email=email,
             password_hash=hash_password(password),
             is_verified=True,
-            token_balance=100,
+            token_balance=get_default_resource_balance(),
         )
         db.add(user)
 

@@ -1,5 +1,7 @@
 """Schemas for descriptive statistics and Table 1 generation."""
 
+from __future__ import annotations
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -43,7 +45,9 @@ class TableOneInterpretResponse(BaseModel):
     analysis_id: str | None = None
     saved_at: str | None = None
     llm_tokens_used: int = 0
+    charged_resources: int = 0
     charged_tokens: int = 0
+    remaining_resources: int = 0
     remaining_balance: int = 0
 
 
@@ -56,6 +60,7 @@ class SavedTableOneInterpretResponse(BaseModel):
     analysis_id: str | None = None
     saved_at: str | None = None
     llm_tokens_used: int = 0
+    charged_resources: int = 0
     charged_tokens: int = 0
 
 
@@ -287,7 +292,14 @@ class LinearRegressionResponse(BaseModel):
     model_p_value: float | None = None
     formula: str
     assumptions: list[str]
+    residual_normality_method: str = ""
+    residual_normality_p_value: float | None = None
+    residual_normality_passed: bool = False
+    homoscedasticity_test_method: str = ""
+    homoscedasticity_p_value: float | None = None
+    homoscedasticity_passed: bool = False
     coefficients: list[LinearRegressionCoefficient]
+    plots: list[LassoPlotPayload] = Field(default_factory=list)
     note: str
 
 
@@ -300,6 +312,7 @@ class LogisticRegressionRequest(BaseModel):
 
 class LogisticRegressionCoefficient(BaseModel):
     term: str
+    coefficient: float | None = None
     odds_ratio: float | None = None
     std_error: float | None = None
     z_value: float | None = None
@@ -326,7 +339,9 @@ class LogisticRegressionResponse(BaseModel):
     model_p_value: float | None = None
     formula: str
     assumptions: list[str]
+    univariate_coefficients: list[LogisticRegressionCoefficient] = Field(default_factory=list)
     coefficients: list[LogisticRegressionCoefficient]
+    plots: list[LassoPlotPayload] = Field(default_factory=list)
     note: str
 
 
@@ -335,6 +350,8 @@ class LassoPlotPayload(BaseModel):
     filename: str
     media_type: str = "image/png"
     content_base64: str
+    vector_pdf_filename: str | None = None
+    vector_pdf_base64: str | None = None
 
 
 class LassoFeatureResult(BaseModel):
@@ -383,6 +400,7 @@ class CoxRegressionRequest(BaseModel):
 
 class CoxRegressionCoefficient(BaseModel):
     term: str
+    coefficient: float | None = None
     hazard_ratio: float | None = None
     std_error: float | None = None
     z_value: float | None = None
@@ -423,20 +441,22 @@ class CoxRegressionResponse(BaseModel):
     global_ph_p_value: float | None = None
     formula: str
     assumptions: list[str]
+    univariate_coefficients: list[CoxRegressionCoefficient] = Field(default_factory=list)
     coefficients: list[CoxRegressionCoefficient]
     proportional_hazards_tests: list[CoxRegressionPhTest]
+    plots: list[LassoPlotPayload] = Field(default_factory=list)
     note: str
 
 
 class RegressionInterpretRequest(BaseModel):
     dataset_id: str
-    analysis_kind: Literal["linear", "lasso", "logistic"]
+    analysis_kind: Literal["linear", "lasso", "logistic", "cox"]
     language: Literal["zh", "en"] = "zh"
     payload: dict
 
 
 class RegressionExportRequest(BaseModel):
-    analysis_kind: Literal["linear", "lasso", "logistic"]
+    analysis_kind: Literal["linear", "lasso", "logistic", "cox"]
     payload: dict
 
 
@@ -447,25 +467,28 @@ class LassoPlotPdfExportRequest(BaseModel):
 
 class RegressionInterpretResponse(BaseModel):
     feature_name: str
-    analysis_kind: Literal["linear", "lasso", "logistic"]
+    analysis_kind: Literal["linear", "lasso", "logistic", "cox"]
     language: Literal["zh", "en"]
     model: str
     content: str
     analysis_id: str | None = None
     saved_at: str | None = None
     llm_tokens_used: int = 0
+    charged_resources: int = 0
     charged_tokens: int = 0
+    remaining_resources: int = 0
     remaining_balance: int = 0
 
 
 class SavedRegressionInterpretResponse(BaseModel):
     found: bool
     feature_name: str | None = None
-    analysis_kind: Literal["linear", "lasso", "logistic"] | None = None
+    analysis_kind: Literal["linear", "lasso", "logistic", "cox"] | None = None
     language: Literal["zh", "en"] | None = None
     model: str | None = None
     content: str | None = None
     analysis_id: str | None = None
     saved_at: str | None = None
     llm_tokens_used: int = 0
+    charged_resources: int = 0
     charged_tokens: int = 0

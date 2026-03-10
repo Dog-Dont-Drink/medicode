@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <div class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50/60 px-5 py-4">
+    <div class="panel-card bg-gradient-to-r from-slate-50 via-white to-emerald-50/60 px-5 py-4">
       <p class="text-sm font-semibold text-slate-900">多组间连续变量统计</p>
       <p class="mt-1 text-sm leading-6 text-slate-600">
         适用于 3 到 4 组独立样本的连续变量比较。系统会先逐组检查正态性，再判断方差齐性；只有满足前提时才使用 one-way ANOVA，否则自动切换到 Kruskal-Wallis 多组非参数检验。
@@ -9,7 +9,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
       <div class="xl:col-span-4">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div>
             <h2 class="text-sm font-semibold text-gray-900">检验配置</h2>
             <p class="mt-1 text-xs text-gray-400">先选择数据集和 3 到 4 组分组变量，再勾选要比较的连续变量。</p>
@@ -18,7 +18,7 @@
           <div class="mt-5 space-y-4">
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">数据集</label>
-              <select v-model="selectedDatasetId" :disabled="loadingDatasets" @change="handleDatasetChange" class="input-field py-2.5 text-sm">
+              <select v-model="selectedDatasetId" :disabled="loadingDatasets" @change="handleDatasetChange" class="tool-input">
                 <option value="">请选择数据集</option>
                 <option v-for="dataset in datasetOptions" :key="dataset.id" :value="dataset.id">
                   {{ dataset.name }} · {{ dataset.projectName }}
@@ -28,7 +28,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">多组分组变量</label>
-              <select v-model="groupVariable" :disabled="!groupVariableOptions.length" @change="handleGroupVariableChange" class="input-field py-2.5 text-sm">
+              <select v-model="groupVariable" :disabled="!groupVariableOptions.length" @change="handleGroupVariableChange" class="tool-input">
                 <option value="">请选择 3-4 组变量</option>
                 <option v-for="column in groupVariableOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · {{ column.unique_count }} 组
@@ -37,7 +37,7 @@
               <p class="mt-1 text-[11px] text-gray-400">方差分析仅接受 3 到 4 组分组变量。</p>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
+            <div class="panel-subtle p-3">
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="text-xs font-semibold text-gray-700">连续变量</p>
@@ -47,7 +47,7 @@
                   {{ selectedContinuousVariables.length === continuousVariableOptions.length && continuousVariableOptions.length ? '清空' : '全选' }}
                 </button>
               </div>
-              <div class="mt-3 rounded-lg border border-white bg-white p-2.5">
+              <div class="panel-card-tight mt-3 border-white p-2.5">
                 <p class="text-[11px] text-gray-500">{{ describeSelection(selectedContinuousVariables, continuousVariableOptions.length, '连续变量') }}</p>
                 <div class="mt-2 grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
                   <label v-for="column in continuousVariableOptions" :key="column.name" class="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-gray-600">
@@ -60,13 +60,13 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">显著性水平</label>
-              <select v-model.number="alpha" class="input-field py-2.5 text-sm">
+              <select v-model.number="alpha" class="tool-input">
                 <option :value="0.05">0.05</option>
                 <option :value="0.01">0.01</option>
               </select>
             </div>
 
-            <button @click="runAnalysis" :disabled="isRunning || !selectedDatasetId || !groupVariable" class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">
+            <button @click="runAnalysis" :disabled="isRunning || !selectedDatasetId || !groupVariable" class="tool-btn-primary w-full px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
               <svg v-if="isRunning" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
               </svg>
@@ -81,7 +81,7 @@
       </div>
 
       <div class="space-y-6 xl:col-span-8">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div>
             <h2 class="text-sm font-semibold text-gray-900">前提检查</h2>
             <p class="mt-1 text-xs text-gray-400">系统会集中显示当前分组结构、已检验变量数，以及多组比较的关键前提。</p>
@@ -89,24 +89,24 @@
 
           <div v-if="anovaResult" class="mt-5 space-y-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <div class="panel-card border-slate-200 bg-slate-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">数据集</p>
                 <p class="mt-2 text-sm font-semibold text-gray-900">{{ anovaResult.dataset_name }}</p>
                 <p class="mt-1 text-xs text-gray-500">分组变量：{{ anovaResult.group_variable }}</p>
               </div>
-              <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
+              <div class="panel-card border-sky-200 bg-sky-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">组别</p>
                 <p class="mt-2 text-xl font-semibold text-gray-900">{{ anovaResult.group_levels.length }}</p>
                 <p class="mt-1 text-xs text-gray-500">{{ anovaResult.group_levels.join(' / ') }}</p>
               </div>
-              <div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
+              <div class="panel-card border-emerald-200 bg-emerald-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">已检验变量</p>
                 <p class="mt-2 text-xl font-semibold text-gray-900">{{ anovaResult.variables.length }}</p>
                 <p class="mt-1 text-xs text-gray-500">alpha = {{ anovaResult.alpha }}</p>
               </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+            <div class="panel-subtle p-4">
               <div class="grid gap-2">
                 <div v-for="(item, index) in anovaResult.assumptions" :key="index" class="flex items-start gap-2 text-sm text-gray-600">
                   <span class="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-primary"></span>
@@ -121,7 +121,7 @@
           </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="text-sm font-semibold text-gray-900">检验结果</h2>
@@ -130,7 +130,7 @@
             <button
               v-if="anovaResult"
               type="button"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-primary/30 hover:text-primary"
+              class="tool-btn h-9 w-9 p-0 text-slate-500 hover:text-primary"
               @click="copyResultTable"
               :aria-label="copiedResult ? '已复制统计结果' : '复制统计结果'"
               :title="copiedResult ? '已复制' : '复制到剪切板'"

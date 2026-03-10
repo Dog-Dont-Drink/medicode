@@ -41,12 +41,12 @@
 
       <!-- Right: Actions -->
       <div class="flex items-center gap-2">
-        <!-- Token Balance -->
-        <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 rounded-lg">
-          <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 18V6"/>
+        <!-- Resource Balance -->
+        <div class="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5">
+          <svg class="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>
           </svg>
-          <span class="text-sm font-medium text-primary-700">{{ tokenBalance }}</span>
+          <span class="text-sm font-medium text-emerald-700">{{ tokenBalance }}</span>
         </div>
 
         <!-- Notifications -->

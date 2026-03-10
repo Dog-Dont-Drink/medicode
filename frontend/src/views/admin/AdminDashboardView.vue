@@ -21,7 +21,7 @@
         <div class="flex items-center justify-between gap-4">
           <div>
             <h2 class="text-lg font-heading font-semibold text-slate-900">近 7 日运营趋势</h2>
-            <p class="mt-1 text-sm text-slate-500">同时观察每日新增用户和每日 Token 消耗。</p>
+            <p class="mt-1 text-sm text-slate-500">同时观察每日新增用户和每日资源消耗。</p>
           </div>
         </div>
 
@@ -39,7 +39,7 @@
               <p class="text-sm font-medium text-slate-700">{{ formatDay(item.date) }}</p>
               <div class="flex items-center gap-4 text-xs text-slate-500">
                 <span>新增 {{ item.users }}</span>
-                <span>消耗 {{ item.token_consumed }}</span>
+                <span>资源 {{ item.token_consumed }}</span>
               </div>
             </div>
             <div class="mt-3 grid gap-2">
@@ -54,7 +54,7 @@
               </div>
               <div>
                 <div class="mb-1 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Token 消耗</span>
+                  <span>资源消耗</span>
                   <span>{{ item.token_consumed }}</span>
                 </div>
                 <div class="h-2 rounded-full bg-white">
@@ -74,11 +74,11 @@
             <p class="mt-2 text-3xl font-semibold text-slate-900">{{ dashboard?.recent_signups || 0 }}</p>
           </div>
           <div class="rounded-2xl bg-slate-50 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Billed Tokens</p>
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Billed Resources</p>
             <p class="mt-2 text-3xl font-semibold text-slate-900">{{ dashboard?.today_token_consumed || 0 }}</p>
           </div>
           <div class="rounded-2xl bg-amber-50 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.2em] text-amber-700">Actual Tokens</p>
+            <p class="text-xs uppercase tracking-[0.2em] text-amber-700">Model Usage</p>
             <p class="mt-2 text-3xl font-semibold text-slate-900">{{ dashboard?.today_actual_token_consumed || 0 }}</p>
           </div>
           <div class="rounded-2xl bg-sky-50 px-4 py-4">

@@ -3,17 +3,17 @@
     <!-- Page Header -->
     <div>
       <h1 class="text-2xl font-heading font-bold text-gray-900">账单管理</h1>
-      <p class="text-sm text-gray-500 mt-1">购买 Token 套餐，管理您的订单记录</p>
+      <p class="text-sm text-gray-500 mt-1">购买资源包，管理您的订单记录</p>
     </div>
 
     <!-- Current Balance Card -->
     <div class="balance-card">
       <div class="flex items-center gap-4">
         <div class="balance-icon">
-          <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 18V6"/></svg>
+          <svg class="h-7 w-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
         </div>
         <div>
-          <p class="text-sm text-white/70">当前 Token 余额</p>
+          <p class="text-sm text-white/70">当前资源余额</p>
           <p class="text-3xl font-heading font-bold text-white mt-0.5">{{ tokenBalance.toLocaleString() }}</p>
         </div>
       </div>
@@ -25,20 +25,19 @@
         <div class="w-px h-8 bg-white/20 hidden sm:block"></div>
         <div class="text-right hidden sm:block">
           <p class="text-xs text-white/50">本月已用</p>
-          <p class="text-sm font-semibold text-white">{{ usedThisMonth }} Token</p>
+          <p class="text-sm font-semibold text-white">{{ usedThisMonth }} 资源</p>
         </div>
         <div class="w-px h-8 bg-white/20 hidden sm:block"></div>
         <div class="text-right hidden sm:block">
-          <p class="text-xs text-white/50">模型实际消耗</p>
-          <p class="text-sm font-semibold text-white">{{ actualUsedThisMonth }} Token</p>
+          <p class="text-xs text-white/50">模型实际用量</p>
+          <p class="text-sm font-semibold text-white">{{ actualUsedThisMonth }}</p>
         </div>
       </div>
     </div>
 
-    <!-- Token Packages -->
     <div>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-heading font-semibold text-gray-900">Token 套餐</h2>
+        <h2 class="text-lg font-heading font-semibold text-gray-900">资源包</h2>
         <span class="text-xs text-gray-400">支持支付宝扫码支付</span>
       </div>
 
@@ -62,9 +61,9 @@
             </div>
             <div class="mt-2 space-y-1">
               <p :class="['text-sm', activePackage === pkg.id ? 'text-white/80' : 'text-gray-600']">
-                <span :class="['font-semibold', activePackage === pkg.id ? 'text-white' : 'text-gray-800']">{{ pkg.tokens }}</span> Token
+                <span :class="['font-semibold', activePackage === pkg.id ? 'text-white' : 'text-gray-800']">{{ pkg.resources }}</span> 资源
               </p>
-              <p :class="['text-xs', activePackage === pkg.id ? 'text-white/60' : 'text-gray-400']">¥{{ TEST_ORDER_AMOUNT }}/Token</p>
+              <p :class="['text-xs', activePackage === pkg.id ? 'text-white/60' : 'text-gray-400']">¥{{ TEST_ORDER_AMOUNT }}/资源</p>
             </div>
 
             <!-- Features list -->
@@ -107,7 +106,7 @@
               <th>订单号</th>
               <th>套餐</th>
               <th>金额</th>
-              <th>Token</th>
+              <th>资源</th>
               <th>状态</th>
               <th>时间</th>
             </tr>
@@ -117,7 +116,7 @@
               <td class="font-mono text-xs text-gray-400">{{ order.orderId.slice(0, 16) }}...</td>
               <td class="font-medium text-gray-800">{{ order.packageName }}</td>
               <td class="font-semibold">¥{{ TEST_ORDER_AMOUNT }}</td>
-              <td class="text-primary font-semibold">+{{ order.tokens.toLocaleString() }}</td>
+              <td class="text-primary font-semibold">+{{ order.resources.toLocaleString() }}</td>
               <td>
                 <span :class="['order-status', `status-${order.status}`]">
                   {{ statusLabels[order.status] }}
@@ -176,7 +175,7 @@ async function loadBillingData() {
     getTokenBalance(),
     getOrderHistory(),
   ])
-  tokenBalance.value = balance.balance
+  tokenBalance.value = balance.resource_balance ?? balance.balance
   currentPlan.value = balance.plan
   usedThisMonth.value = balance.used_this_month
   actualUsedThisMonth.value = balance.actual_used_this_month
@@ -191,7 +190,7 @@ async function loadPackageList() {
   }
 }
 
-async function onPaymentSuccess(_: { orderId: string; tokens: number }) {
+async function onPaymentSuccess(_: { orderId: string; resources: number }) {
   await loadBillingData()
 }
 
@@ -215,7 +214,7 @@ onMounted(() => {
 /* Balance Card */
 .balance-card {
   background: linear-gradient(135deg, #059669 0%, #047857 60%, #065F46 100%);
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   padding: 1.5rem 1.75rem;
   display: flex;
   flex-direction: column;
@@ -233,7 +232,7 @@ onMounted(() => {
   width: 3.5rem;
   height: 3.5rem;
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 0.875rem;
+  border-radius: 0.625rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,7 +244,7 @@ onMounted(() => {
   position: relative;
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -333,14 +332,14 @@ onMounted(() => {
   align-items: center;
   padding: 3rem 1rem;
   background: #f9fafb;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   border: 1px dashed #e5e7eb;
 }
 
 .orders-table {
   background: white;
   border: 1px solid #f3f4f6;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   overflow: hidden;
 }
 

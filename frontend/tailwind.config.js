@@ -57,8 +57,11 @@ export default {
                 'float': '0 20px 25px rgba(0,0,0,0.12)',
             },
             borderRadius: {
-                '2xl': '1rem',
-                '3xl': '1.5rem',
+                'md': '0.375rem',
+                'lg': '0.5rem',
+                'xl': '0.5rem',
+                '2xl': '0.625rem',
+                '3xl': '0.75rem',
             },
             animation: {
                 'fade-in': 'fadeIn 0.3s ease-out',

@@ -7,7 +7,47 @@ import pandas as pd
 from openpyxl.styles import Alignment, Border, Font, Side
 
 
-def _build_result_frame(analysis_kind: Literal['linear', 'lasso', 'logistic'], payload: dict[str, Any]) -> pd.DataFrame:
+def _merge_model_frames(
+    univariate_rows: list[dict[str, Any]],
+    multivariate_rows: list[dict[str, Any]],
+    value_key: str,
+) -> pd.DataFrame:
+    order: list[str] = []
+    univariate_map = {str(item.get('term') or ''): item for item in univariate_rows}
+    multivariate_map = {str(item.get('term') or ''): item for item in multivariate_rows}
+
+    for item in univariate_rows:
+        term = str(item.get('term') or '')
+        if term and term not in order:
+            order.append(term)
+    for item in multivariate_rows:
+        term = str(item.get('term') or '')
+        if term and term not in order:
+            order.append(term)
+
+    merged = []
+    for term in order:
+        uni = univariate_map.get(term, {})
+        multi = multivariate_map.get(term, {})
+        merged.append(
+            {
+                '项': term,
+                '单因素 系数': uni.get('coefficient'),
+                '单因素 SE': uni.get('std_error'),
+                f'单因素 {value_key}': uni.get(value_key),
+                '单因素 95% CI': _format_interval(uni.get('conf_low'), uni.get('conf_high')),
+                '单因素 P值': _format_p(uni.get('p_value')),
+                '多因素 系数': multi.get('coefficient'),
+                '多因素 SE': multi.get('std_error'),
+                f'多因素 {value_key}': multi.get(value_key),
+                '多因素 95% CI': _format_interval(multi.get('conf_low'), multi.get('conf_high')),
+                '多因素 P值': _format_p(multi.get('p_value')),
+            }
+        )
+    return pd.DataFrame(merged)
+
+
+def _build_result_frame(analysis_kind: Literal['linear', 'lasso', 'logistic', 'cox'], payload: dict[str, Any]) -> pd.DataFrame:
     if analysis_kind == 'linear':
         rows = [
             {
@@ -23,18 +63,18 @@ def _build_result_frame(analysis_kind: Literal['linear', 'lasso', 'logistic'], p
         return pd.DataFrame(rows)
 
     if analysis_kind == 'logistic':
-        rows = [
-            {
-                '项': item.get('term'),
-                'OR': item.get('odds_ratio'),
-                'SE': item.get('std_error'),
-                'Z': item.get('z_value'),
-                '95% CI': _format_interval(item.get('conf_low'), item.get('conf_high')),
-                'P值': _format_p(item.get('p_value')),
-            }
-            for item in (payload.get('coefficients') or [])
-        ]
-        return pd.DataFrame(rows)
+        return _merge_model_frames(
+            payload.get('univariate_coefficients') or [],
+            payload.get('coefficients') or [],
+            'odds_ratio',
+        )
+
+    if analysis_kind == 'cox':
+        return _merge_model_frames(
+            payload.get('univariate_coefficients') or [],
+            payload.get('coefficients') or [],
+            'hazard_ratio',
+        )
 
     rows = [
         {
@@ -49,7 +89,7 @@ def _build_result_frame(analysis_kind: Literal['linear', 'lasso', 'logistic'], p
     return pd.DataFrame(rows)
 
 
-def _build_note_frame(analysis_kind: Literal['linear', 'lasso', 'logistic'], payload: dict[str, Any]) -> pd.DataFrame:
+def _build_note_frame(analysis_kind: Literal['linear', 'lasso', 'logistic', 'cox'], payload: dict[str, Any]) -> pd.DataFrame:
     notes: list[dict[str, Any]] = [
         {'备注项': '数据集', '备注内容': payload.get('dataset_name')},
         {'备注项': '因变量', '备注内容': payload.get('outcome_variable')},
@@ -76,6 +116,18 @@ def _build_note_frame(analysis_kind: Literal['linear', 'lasso', 'logistic'], pay
                 {'备注项': 'Pseudo R²', '备注内容': payload.get('pseudo_r_squared')},
                 {'备注项': 'AIC', '备注内容': payload.get('aic')},
                 {'备注项': 'Model P', '备注内容': _format_p(payload.get('model_p_value'))},
+                {'备注项': 'Formula', '备注内容': payload.get('formula')},
+            ]
+        )
+    elif analysis_kind == 'cox':
+        notes.extend(
+            [
+                {'备注项': '生存时间', '备注内容': payload.get('time_variable')},
+                {'备注项': '事件变量', '备注内容': payload.get('event_variable')},
+                {'备注项': '事件数', '备注内容': payload.get('event_count')},
+                {'备注项': 'C-index', '备注内容': payload.get('concordance')},
+                {'备注项': 'Global PH P', '备注内容': _format_p(payload.get('global_ph_p_value'))},
+                {'备注项': 'Likelihood P', '备注内容': _format_p(payload.get('likelihood_ratio_p_value'))},
                 {'备注项': 'Formula', '备注内容': payload.get('formula')},
             ]
         )
@@ -141,7 +193,7 @@ def _apply_three_line_style(worksheet, data_columns: int, data_rows: int) -> Non
         worksheet.column_dimensions[column_cells[0].column_letter].width = min(max_length + 4, 40)
 
 
-def export_regression_excel(analysis_kind: Literal['linear', 'lasso', 'logistic'], payload: dict[str, Any]) -> bytes:
+def export_regression_excel(analysis_kind: Literal['linear', 'lasso', 'logistic', 'cox'], payload: dict[str, Any]) -> bytes:
     result_frame = _build_result_frame(analysis_kind, payload)
     note_frame = _build_note_frame(analysis_kind, payload)
 
@@ -164,7 +216,7 @@ def export_regression_excel(analysis_kind: Literal['linear', 'lasso', 'logistic'
             for cell in worksheet[row]:
                 cell.alignment = Alignment(vertical='top', wrap_text=True)
 
-        if analysis_kind == 'lasso':
+        if analysis_kind in ['lasso', 'cox']:
             plots = payload.get('plots') or []
             if plots:
                 plot_rows = [

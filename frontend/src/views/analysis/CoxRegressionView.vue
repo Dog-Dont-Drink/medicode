@@ -1,15 +1,15 @@
 <template>
   <div class="space-y-6">
-    <div class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-cyan-50/60 px-5 py-4">
+    <div class="panel-card bg-gradient-to-r from-slate-50 via-white to-cyan-50/60 px-5 py-4">
       <p class="text-sm font-semibold text-slate-900">Cox 生存分析</p>
       <p class="mt-1 text-sm leading-6 text-slate-600">
-        选择生存时间、事件结局和候选协变量，后端将通过 R 的 `survival::coxph` 完成比例风险模型拟合，并返回 HR、95% CI 与比例风险假设检验结果。
+        选择生存时间、事件结局和候选协变量，后端完成 Cox 模型拟合，并返回 HR、95% CI 与简洁森林图。
       </p>
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
       <div class="xl:col-span-4">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div>
             <h2 class="text-sm font-semibold text-gray-900">模型配置</h2>
             <p class="mt-1 text-xs text-gray-400">生存时间需为正数，事件变量需为二分类变量，自变量支持数值型与分类变量。</p>
@@ -18,7 +18,7 @@
           <div class="mt-5 space-y-4">
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">数据集</label>
-              <select v-model="selectedDatasetId" :disabled="loadingDatasets" @change="handleDatasetChange" class="input-field py-2.5 text-sm">
+              <select v-model="selectedDatasetId" :disabled="loadingDatasets" @change="handleDatasetChange" class="tool-input">
                 <option value="">请选择数据集</option>
                 <option v-for="dataset in datasetOptions" :key="dataset.id" :value="dataset.id">
                   {{ dataset.name }} · {{ dataset.projectName }}
@@ -28,7 +28,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">生存时间变量</label>
-              <select v-model="timeVariable" :disabled="!timeOptions.length" @change="handleCoreVariableChange" class="input-field py-2.5 text-sm">
+              <select v-model="timeVariable" :disabled="!timeOptions.length" @change="handleCoreVariableChange" class="tool-input">
                 <option value="">请选择生存时间变量</option>
                 <option v-for="column in timeOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · 数值型
@@ -38,7 +38,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">事件变量</label>
-              <select v-model="eventVariable" :disabled="!eventOptions.length" @change="handleCoreVariableChange" class="input-field py-2.5 text-sm">
+              <select v-model="eventVariable" :disabled="!eventOptions.length" @change="handleCoreVariableChange" class="tool-input">
                 <option value="">请选择事件变量</option>
                 <option v-for="column in eventOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · {{ eventOptionLabel(column) }}
@@ -47,7 +47,7 @@
               <p class="mt-1 text-[11px] text-gray-400">支持 0/1 数值型或双水平分类变量。</p>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
+            <div class="panel-subtle p-3">
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="text-xs font-semibold text-gray-700">协变量</p>
@@ -57,7 +57,7 @@
                   {{ selectedPredictors.length === predictorOptions.length && predictorOptions.length ? '清空' : '全选' }}
                 </button>
               </div>
-              <div class="mt-3 rounded-lg border border-white bg-white p-2.5">
+              <div class="panel-card-tight mt-3 border-white p-2.5">
                 <p class="text-[11px] text-gray-500">{{ predictorSelectionText }}</p>
                 <div class="mt-2 grid max-h-52 grid-cols-2 gap-2 overflow-y-auto pr-1">
                   <label
@@ -79,7 +79,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">显著性水平</label>
-              <select v-model.number="alpha" class="input-field py-2.5 text-sm">
+              <select v-model.number="alpha" class="tool-input">
                 <option :value="0.05">0.05</option>
                 <option :value="0.01">0.01</option>
               </select>
@@ -88,7 +88,7 @@
             <button
               @click="runAnalysis"
               :disabled="isRunning || !selectedDatasetId || !timeVariable || !eventVariable || !selectedPredictors.length"
-              class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+              class="tool-btn-primary w-full px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg v-if="isRunning" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
@@ -104,141 +104,152 @@
       </div>
 
       <div class="space-y-6 xl:col-span-8">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
-          <div>
-            <h2 class="text-sm font-semibold text-gray-900">模型摘要</h2>
-            <p class="mt-1 text-xs text-gray-400">重点查看样本量、事件数、C-index 和整体检验结果。</p>
-          </div>
-
-          <div v-if="result" class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">数据集</p>
-              <p class="mt-2 text-sm font-semibold text-gray-900">{{ result.dataset_name }}</p>
-              <p class="mt-1 text-xs text-gray-500">时间：{{ result.time_variable }} / 事件：{{ result.event_variable }}</p>
-            </div>
-            <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">样本与事件</p>
-              <p class="mt-2 text-xl font-semibold text-gray-900">{{ result.sample_size }}</p>
-              <p class="mt-1 text-xs text-gray-500">事件 {{ result.event_count }}，剔除 {{ result.excluded_rows }} 行</p>
-            </div>
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">区分度</p>
-              <p class="mt-2 text-xl font-semibold text-gray-900">{{ formatNumber(result.concordance) }}</p>
-              <p class="mt-1 text-xs text-gray-500">C-index，SE {{ formatNumber(result.concordance_std_error) }}</p>
-            </div>
-            <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">PH 假设</p>
-              <p class="mt-2 text-xl font-semibold text-gray-900">{{ formatP(result.global_ph_p_value) }}</p>
-              <p class="mt-1 text-xs text-gray-500">全局 Schoenfeld 检验 P 值</p>
-            </div>
-          </div>
-
-          <div v-if="result" class="mt-4 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-            <div class="grid gap-2">
-              <div v-for="(item, index) in result.assumptions" :key="index" class="flex items-start gap-2 text-sm text-gray-600">
-                <span class="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-primary"></span>
-                <span>{{ item }}</span>
-              </div>
-            </div>
-            <p class="mt-3 text-xs text-gray-500">{{ result.note }}</p>
-          </div>
-
-          <div v-if="result" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">Likelihood ratio</p>
-              <p class="mt-2 text-lg font-semibold text-slate-900">{{ formatNumber(result.likelihood_ratio_statistic) }}</p>
-              <p class="mt-1 text-xs text-gray-500">df {{ formatNumber(result.likelihood_ratio_df) }}，P {{ formatP(result.likelihood_ratio_p_value) }}</p>
-            </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">Wald</p>
-              <p class="mt-2 text-lg font-semibold text-slate-900">{{ formatNumber(result.wald_statistic) }}</p>
-              <p class="mt-1 text-xs text-gray-500">df {{ formatNumber(result.wald_df) }}，P {{ formatP(result.wald_p_value) }}</p>
-            </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">Score (log-rank)</p>
-              <p class="mt-2 text-lg font-semibold text-slate-900">{{ formatNumber(result.score_statistic) }}</p>
-              <p class="mt-1 text-xs text-gray-500">df {{ formatNumber(result.score_df) }}，P {{ formatP(result.score_p_value) }}</p>
-            </div>
-          </div>
-
-          <div v-else class="py-16 text-center text-sm text-gray-400">运行模型后，这里会展示 Cox 模型摘要、PH 假设检验和总体统计量。</div>
-        </div>
-
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
-          <div>
-            <h2 class="text-sm font-semibold text-gray-900">结果表</h2>
+        <div class="panel-card p-5">
+          <div v-if="!result">
+            <h2 class="text-sm font-semibold text-gray-900">Cox 比例风险模型结果</h2>
             <p class="mt-1 text-xs text-gray-400">展示 Cox 比例风险模型的 HR、95% CI、Z 值和 P 值。</p>
           </div>
 
-          <div v-if="result" class="mt-5 overflow-x-auto">
-            <table class="result-table min-w-full text-sm">
-              <thead>
-                <tr>
-                  <th>项</th>
-                  <th>HR</th>
-                  <th>SE</th>
-                  <th>Z</th>
-                  <th>95% CI</th>
-                  <th>P 值</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in result.coefficients" :key="item.term">
-                  <td class="font-semibold text-slate-900">{{ item.term }}</td>
-                  <td>{{ formatNumber(item.hazard_ratio) }}</td>
-                  <td>{{ formatNumber(item.std_error) }}</td>
-                  <td>{{ formatNumber(item.z_value) }}</td>
-                  <td>{{ formatInterval(item.conf_low, item.conf_high) }}</td>
-                  <td>{{ formatP(item.p_value) }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-if="result" class="mt-5 space-y-5">
+            <div class="inline-flex rounded-2xl border border-emerald-100 bg-emerald-50/80 p-1">
+              <button
+                type="button"
+                class="rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+                :class="activeResultTab === 'table' ? 'bg-emerald-500 text-white shadow-sm' : 'text-emerald-800 hover:bg-white/80'"
+                @click="activeResultTab = 'table'"
+              >
+                结果三线表
+              </button>
+              <button
+                type="button"
+                class="rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+                :class="activeResultTab === 'forest' ? 'bg-emerald-500 text-white shadow-sm' : 'text-emerald-800 hover:bg-white/80'"
+                @click="activeResultTab = 'forest'"
+              >
+                森林图
+              </button>
+            </div>
+
+            <div v-if="activeResultTab === 'table'" class="analysis-tab-panel space-y-4">
+              <div>
+                <h2 class="text-sm font-semibold text-gray-900">Cox 比例风险模型结果</h2>
+                <p class="mt-1 text-xs text-gray-400">展示 Cox 回归单因素与多因素结果，重点查看 HR、95% CI 和 P 值。</p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="result-table min-w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th rowspan="2">项</th>
+                      <th colspan="5" class="text-center">单因素</th>
+                      <th colspan="5" class="text-center">多因素</th>
+                    </tr>
+                    <tr>
+                      <th>系数</th>
+                      <th>SE</th>
+                      <th>HR</th>
+                      <th>95% CI</th>
+                      <th>P 值</th>
+                      <th>系数</th>
+                      <th>SE</th>
+                      <th>HR</th>
+                      <th>95% CI</th>
+                      <th>P 值</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in combinedCoxRows" :key="item.term">
+                      <td class="font-semibold text-slate-900">{{ item.term }}</td>
+                      <td>{{ item.univariateCoefficient }}</td>
+                      <td>{{ item.univariateSe }}</td>
+                      <td>{{ item.univariateValue }}</td>
+                      <td>{{ item.univariateInterval }}</td>
+                      <td>{{ item.univariateP }}</td>
+                      <td>{{ item.multivariateCoefficient }}</td>
+                      <td>{{ item.multivariateSe }}</td>
+                      <td>{{ item.multivariateValue }}</td>
+                      <td>{{ item.multivariateInterval }}</td>
+                      <td>{{ item.multivariateP }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="flex flex-wrap gap-2 text-[11px] text-slate-600">
+                <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">样本量 {{ result.sample_size }}</span>
+                <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">事件数 {{ result.event_count }}</span>
+                <span class="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-cyan-700">事件水平 {{ result.event_level }}</span>
+                <span class="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1">参考水平 {{ result.reference_level }}</span>
+              </div>
+            </div>
+
+            <div v-else class="analysis-tab-panel space-y-4">
+
+              <div v-if="result.plots.length" class="grid gap-4 lg:grid-cols-1">
+                <div v-for="plot in result.plots" :key="plot.filename" class="panel-card overflow-hidden border-emerald-100 shadow-sm shadow-emerald-100/40">
+                  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">{{ plot.name }}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="tool-btn px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                        @click="downloadPlot(plot)"
+                      >
+                        下载 PNG
+                      </button>
+                      <button
+                        type="button"
+                        class="tool-btn border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="downloadingPdfPlot === plot.filename"
+                        @click="downloadPlotPdf(plot)"
+                      >
+                        <span>{{ downloadingPdfPlot === plot.filename ? '导出中...' : '下载 PDF' }}</span>
+                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 drop-shadow-[0_0_10px_rgba(16,185,129,0.45)]">
+                          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+                          1
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="bg-white p-4 sm:p-6">
+                    <img :src="plotDataUri(plot)" :alt="plot.name" class="w-full bg-white object-contain" />
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="panel-card border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-5 text-sm text-emerald-800">
+                当前结果未生成森林图，请重新运行 Cox 生存分析后再查看。
+              </div>
+            </div>
           </div>
 
-          <div v-else class="py-12 text-center text-sm text-gray-400">模型运行完成后，这里会展示 Cox 三线表结果。</div>
+          <div v-else class="py-16 text-center text-sm text-gray-400">运行模型后，这里会展示回归结果表和森林图。</div>
+
+          <InsightActionPanel
+            v-if="result"
+            class="mt-5"
+            :language="interpretationLanguage"
+            :is-interpreting="isInterpreting"
+            :is-downloading="isDownloading"
+            :content="interpretationContent"
+            :copied="copiedInterpretation"
+            :charged-resources="interpretationChargedTokens"
+            :remaining-resources="interpretationRemainingBalance"
+            :saved-at="interpretationSavedAt"
+            description="基于当前回归结果生成论文级结果说明。"
+            loading-description="根据当前回归结果提炼论文式 Results 段落，请稍候。"
+            empty-text="模型结果生成后，可在此调用 AI结果解读，输出适合论文 Results 部分的描述段落。"
+            :interpret-disabled="isInterpreting"
+            :download-disabled="isDownloading"
+            @language-change="setInterpretationLanguage"
+            @interpret="interpretResult"
+            @download="downloadExcel"
+            @copy="copyInterpretation"
+          />
         </div>
 
-        <div v-if="result" class="rounded-2xl border border-gray-100 bg-white p-5">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <h2 class="text-sm font-semibold text-gray-900">比例风险假设检验</h2>
-              <p class="mt-1 text-xs text-gray-400">基于 Schoenfeld 残差的 `cox.zph` 结果。若某协变量或全局 P 值过小，需要进一步考虑 PH 假设是否成立。</p>
-            </div>
-            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right">
-              <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">Global P</p>
-              <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatP(result.global_ph_p_value) }}</p>
-            </div>
-          </div>
-
-          <div v-if="result.proportional_hazards_tests.length" class="mt-5 overflow-x-auto">
-            <table class="result-table min-w-full text-sm">
-              <thead>
-                <tr>
-                  <th>项</th>
-                  <th>Chi-square</th>
-                  <th>df</th>
-                  <th>P 值</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in result.proportional_hazards_tests" :key="item.term">
-                  <td class="font-semibold text-slate-900">{{ item.term }}</td>
-                  <td>{{ formatNumber(item.statistic) }}</td>
-                  <td>{{ formatNumber(item.df) }}</td>
-                  <td>{{ formatP(item.p_value) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-400">
-            当前模型未返回逐项 PH 检验结果，但已返回全局 PH 检验。
-          </div>
-
-          <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
-            <p>公式：{{ result.formula }}</p>
-            <p class="mt-1">事件水平：{{ result.event_level }}；参考水平：{{ result.reference_level }}</p>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -247,16 +258,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 
+import InsightActionPanel from '@/components/analysis/InsightActionPanel.vue'
 import {
+  downloadCoxPlotPdf,
   getDatasetSummary,
   getDatasets,
   getProjects,
+  getSavedRegressionInterpretation,
+  interpretRegression,
+  downloadRegressionExcel,
   runCoxRegression,
   type CoxRegressionResponse,
   type DatasetColumnSummary,
   type DatasetItem,
   type DatasetSummaryResponse,
+  type LassoPlotPayload,
 } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
 
 interface ProjectItem {
@@ -275,15 +293,41 @@ interface PersistedCoxViewState {
   eventVariable: string
   selectedPredictors: string[]
   alpha: number
+  interpretationLanguage?: 'zh' | 'en'
   result: CoxRegressionResponse | null
+  interpretationContent?: string
+  interpretationChargedTokens?: number
+  interpretationRemainingBalance?: number | null
+  interpretationSavedAt?: string
 }
+
+interface CombinedCoxTableRow {
+  term: string
+  univariateCoefficient: string
+  univariateSe: string
+  univariateValue: string
+  univariateInterval: string
+  univariateP: string
+  multivariateCoefficient: string
+  multivariateSe: string
+  multivariateValue: string
+  multivariateInterval: string
+  multivariateP: string
+}
+
+type CoxResultTab = 'table' | 'forest'
 
 const COX_STATE_KEY = 'cox_regression_state_v1'
 
 const notificationStore = useNotificationStore()
+const authStore = useAuthStore()
 
 const loadingDatasets = ref(false)
 const isRunning = ref(false)
+const isInterpreting = ref(false)
+const isDownloading = ref(false)
+const downloadingPdfPlot = ref<string | null>(null)
+const activeResultTab = ref<CoxResultTab>('table')
 const datasetOptions = ref<DatasetOption[]>([])
 const datasetSummary = ref<DatasetSummaryResponse | null>(null)
 
@@ -294,7 +338,18 @@ const selectedPredictors = ref<string[]>([])
 const alpha = ref(0.05)
 const result = ref<CoxRegressionResponse | null>(null)
 
+const interpretationLanguage = ref<'zh' | 'en'>('zh')
+const interpretationContent = ref('')
+const interpretationChargedTokens = ref(0)
+const interpretationRemainingBalance = ref<number | null>(null)
+const interpretationSavedAt = ref('')
+const copiedInterpretation = ref(false)
+
 let restoringState = false
+
+const PAID_SUBSCRIPTIONS = new Set(['basic', 'pro', 'enterprise'])
+const canUseAiInterpretation = computed(() => PAID_SUBSCRIPTIONS.has(authStore.user?.subscription || 'free'))
+const canDownloadPremiumPdf = computed(() => PAID_SUBSCRIPTIONS.has(authStore.user?.subscription || 'free'))
 
 const timeOptions = computed(() =>
   (datasetSummary.value?.columns || []).filter((column) => column.kind === 'numeric' && column.unique_count >= 2),
@@ -320,6 +375,15 @@ const predictorSelectionText = computed(() => {
   if (selectedPredictors.value.length <= 3) return `已选择 ${selectedPredictors.value.join('、')}`
   return `已选择 ${selectedPredictors.value.length} 个协变量`
 })
+const combinedCoxRows = computed<CombinedCoxTableRow[]>(() =>
+  mergeComparisonRows(
+    result.value?.univariate_coefficients || [],
+    result.value?.coefficients || [],
+    (item) => formatNumber(item.hazard_ratio),
+    (item) => formatInterval(item.conf_low, item.conf_high),
+    (item) => formatP(item.p_value),
+  ),
+)
 
 function isBinaryColumn(column: DatasetColumnSummary) {
   return (column.kind === 'categorical' || column.kind === 'boolean' || column.kind === 'numeric') && column.unique_count === 2
@@ -347,8 +411,73 @@ function formatInterval(low: number | null | undefined, high: number | null | un
   return `${low.toFixed(3)} ~ ${high.toFixed(3)}`
 }
 
+function mergeComparisonRows<T extends { term: string; coefficient?: number | null; std_error?: number | null }>(
+  univariateRows: T[],
+  multivariateRows: T[],
+  formatValue: (row: T) => string,
+  formatCi: (row: T) => string,
+  formatPValue: (row: T) => string,
+): CombinedCoxTableRow[] {
+  const order: string[] = []
+  const univariateMap = new Map<string, T>()
+  const multivariateMap = new Map<string, T>()
+
+  for (const row of univariateRows) {
+    if (!order.includes(row.term)) order.push(row.term)
+    univariateMap.set(row.term, row)
+  }
+  for (const row of multivariateRows) {
+    if (!order.includes(row.term)) order.push(row.term)
+    multivariateMap.set(row.term, row)
+  }
+
+  return order.map((term) => {
+    const univariateRow = univariateMap.get(term)
+    const multivariateRow = multivariateMap.get(term)
+    return {
+      term,
+      univariateCoefficient: univariateRow ? formatNumber(univariateRow.coefficient) : '-',
+      univariateSe: univariateRow ? formatNumber(univariateRow.std_error) : '-',
+      univariateValue: univariateRow ? formatValue(univariateRow) : '-',
+      univariateInterval: univariateRow ? formatCi(univariateRow) : '-',
+      univariateP: univariateRow ? formatPValue(univariateRow) : '-',
+      multivariateCoefficient: multivariateRow ? formatNumber(multivariateRow.coefficient) : '-',
+      multivariateSe: multivariateRow ? formatNumber(multivariateRow.std_error) : '-',
+      multivariateValue: multivariateRow ? formatValue(multivariateRow) : '-',
+      multivariateInterval: multivariateRow ? formatCi(multivariateRow) : '-',
+      multivariateP: multivariateRow ? formatPValue(multivariateRow) : '-',
+    }
+  })
+}
+
 function resetResult() {
   result.value = null
+  activeResultTab.value = 'table'
+  interpretationContent.value = ''
+  interpretationChargedTokens.value = 0
+  interpretationRemainingBalance.value = null
+  interpretationSavedAt.value = ''
+}
+
+function buildCoxInterpretPayload() {
+  if (!result.value) return null
+  return {
+    dataset_name: result.value.dataset_name,
+    time_variable: result.value.time_variable,
+    event_variable: result.value.event_variable,
+    event_level: result.value.event_level,
+    reference_level: result.value.reference_level,
+    sample_size: result.value.sample_size,
+    event_count: result.value.event_count,
+    excluded_rows: result.value.excluded_rows,
+    coefficients: result.value.coefficients.map((item) => ({
+      term: item.term,
+      hazard_ratio: item.hazard_ratio,
+      conf_low: item.conf_low,
+      conf_high: item.conf_high,
+      p_value: item.p_value,
+    })),
+  }
 }
 
 function buildPersistedState(): PersistedCoxViewState {
@@ -358,7 +487,12 @@ function buildPersistedState(): PersistedCoxViewState {
     eventVariable: eventVariable.value,
     selectedPredictors: [...selectedPredictors.value],
     alpha: alpha.value,
+    interpretationLanguage: interpretationLanguage.value,
     result: result.value,
+    interpretationContent: interpretationContent.value,
+    interpretationChargedTokens: interpretationChargedTokens.value,
+    interpretationRemainingBalance: interpretationRemainingBalance.value,
+    interpretationSavedAt: interpretationSavedAt.value,
   }
 }
 
@@ -429,6 +563,12 @@ async function loadAllDatasets() {
       ? (savedState?.selectedPredictors || []).filter((name) => predictorOptions.value.some((column) => column.name === name))
       : []
     result.value = canRestoreExactState ? savedState?.result || null : null
+    interpretationLanguage.value = savedState?.interpretationLanguage || 'zh'
+    interpretationContent.value = canRestoreExactState ? savedState?.interpretationContent || '' : ''
+    interpretationChargedTokens.value = canRestoreExactState ? savedState?.interpretationChargedTokens || 0 : 0
+    interpretationRemainingBalance.value = canRestoreExactState ? (savedState?.interpretationRemainingBalance ?? null) : null
+    interpretationSavedAt.value = canRestoreExactState ? savedState?.interpretationSavedAt || '' : ''
+
     restoringState = false
     persistState()
   } catch (error) {
@@ -488,7 +628,8 @@ async function runAnalysis() {
       predictor_variables: selectedPredictors.value,
       alpha: alpha.value,
     })
-    notificationStore.success('Cox 生存分析已完成', '结果表、整体检验和 PH 假设检验已生成。')
+    notificationStore.success('Cox 生存分析已完成', '结果表与森林图已生成。')
+    void loadSavedInterpretation()
   } catch (error: any) {
     console.error('Failed to run cox regression', error)
     notificationStore.error('Cox 生存分析失败', error.response?.data?.detail || '请稍后重试。')
@@ -497,8 +638,176 @@ async function runAnalysis() {
   }
 }
 
+function setInterpretationLanguage(lang: 'zh' | 'en') {
+  interpretationLanguage.value = lang
+  if (result.value) {
+    void loadSavedInterpretation()
+  }
+}
+
+async function loadSavedInterpretation() {
+  const payload = buildCoxInterpretPayload()
+  if (!selectedDatasetId.value || !payload) return
+  try {
+    const res = await getSavedRegressionInterpretation({
+      dataset_id: selectedDatasetId.value,
+      analysis_kind: 'cox',
+      language: interpretationLanguage.value,
+      payload,
+    })
+    if (res.found && res.content) {
+      interpretationContent.value = res.content
+      interpretationChargedTokens.value = res.charged_resources || res.charged_tokens
+      interpretationRemainingBalance.value = null
+      interpretationSavedAt.value = res.saved_at || ''
+    } else {
+      interpretationContent.value = ''
+      interpretationChargedTokens.value = 0
+      interpretationRemainingBalance.value = null
+      interpretationSavedAt.value = ''
+    }
+  } catch (error) {
+    console.error('Failed to load saved cox interpretation', error)
+  }
+}
+
+async function interpretResult() {
+  const payload = buildCoxInterpretPayload()
+  if (!payload || !selectedDatasetId.value) return
+
+  if (!canUseAiInterpretation.value) {
+    notificationStore.warning('当前不可用', '升级到付费套餐后可使用 AI 结果解读。')
+    return
+  }
+
+  isInterpreting.value = true
+  interpretationContent.value = ''
+  try {
+    const res = await interpretRegression({
+      dataset_id: selectedDatasetId.value,
+      analysis_kind: 'cox',
+      language: interpretationLanguage.value,
+      payload,
+    })
+    interpretationContent.value = res.content
+    interpretationChargedTokens.value = res.charged_resources || res.charged_tokens
+    interpretationRemainingBalance.value = res.remaining_resources ?? res.remaining_balance
+    interpretationSavedAt.value = res.saved_at || ''
+    if (authStore.user) {
+      authStore.user.tokenBalance = res.remaining_resources ?? res.remaining_balance
+    }
+    notificationStore.success('AI解读已生成', '结果已同步保存，刷新后可自动恢复。')
+  } catch (error: any) {
+    console.error('Failed to interpret cox result', error)
+    notificationStore.error('AI解读失败', error.response?.data?.detail || '请稍后重试。')
+  } finally {
+    isInterpreting.value = false
+  }
+}
+
+function copyInterpretation() {
+  if (!interpretationContent.value) return
+  navigator.clipboard.writeText(interpretationContent.value)
+    .then(() => {
+      copiedInterpretation.value = true
+      setTimeout(() => { copiedInterpretation.value = false }, 2000)
+    })
+    .catch((err) => {
+      console.error('Copy failed:', err)
+      notificationStore.error('复制失败', '请手动选中后复制。')
+    })
+}
+
+async function downloadExcel() {
+  if (!result.value) return
+
+  isDownloading.value = true
+  try {
+    const exportPayload = {
+      ...result.value,
+      plots: [],
+    }
+    const blob = await downloadRegressionExcel({
+      analysis_kind: 'cox',
+      payload: exportPayload as unknown as Record<string, unknown>,
+    })
+    const url = window.URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${result.value.dataset_name || 'regression'}_cox_regression.xlsx`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(url)
+  } catch (error: any) {
+    console.error('Failed to download regression excel', error)
+    notificationStore.error('下载失败', error?.response?.data?.detail || 'Excel 下载失败，请稍后重试。')
+  } finally {
+    isDownloading.value = false
+  }
+}
+
+function plotDataUri(plot: LassoPlotPayload) {
+  return `data:${plot.media_type};base64,${plot.content_base64}`
+}
+
+function downloadPlot(plot: LassoPlotPayload) {
+  const link = document.createElement('a')
+  link.href = plotDataUri(plot)
+  link.download = plot.filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+async function downloadPlotPdf(plot: LassoPlotPayload) {
+  if (!selectedDatasetId.value) return
+
+  if (!canDownloadPremiumPdf.value) {
+    notificationStore.warning('当前不可用', '升级到付费套餐后可导出 PDF 高清图像。')
+    return
+  }
+
+  downloadingPdfPlot.value = plot.filename
+  try {
+    const pdf = await downloadCoxPlotPdf({
+      dataset_id: selectedDatasetId.value,
+      plot,
+    })
+    const url = window.URL.createObjectURL(pdf.blob)
+    const link = document.createElement('a')
+    link.href = url
+    const pdfFilename = plot.filename.replace(/\.[^/.]+$/, '') + '.pdf'
+    link.setAttribute('download', pdfFilename)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    if (authStore.user && pdf.remainingResources !== null) {
+      authStore.user.tokenBalance = pdf.remainingResources
+    }
+  } catch (error: any) {
+    console.error('Failed to download PDF', error)
+    let errorMessage = '无法导出 PDF，请稍后重试'
+    if (error.response?.data?.detail) {
+      errorMessage = error.response.data.detail
+    } else if (error.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text()
+        const json = JSON.parse(text)
+        if (json.detail) errorMessage = json.detail
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+    notificationStore.error('PDF导出失败', errorMessage)
+  } finally {
+    downloadingPdfPlot.value = null
+  }
+}
+
 watch(
-  [selectedDatasetId, timeVariable, eventVariable, selectedPredictors, alpha, result],
+  [selectedDatasetId, timeVariable, eventVariable, selectedPredictors, alpha, result, interpretationLanguage, interpretationContent],
   () => {
     persistState()
   },
@@ -543,5 +852,16 @@ onMounted(async () => {
 
 .result-table td {
   color: #334155;
+}
+
+.analysis-tab-panel {
+  min-height: 24rem;
+  align-content: start;
+}
+
+@media (min-width: 1280px) {
+  .analysis-tab-panel {
+    min-height: 38rem;
+  }
 }
 </style>

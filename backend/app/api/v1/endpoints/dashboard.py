@@ -1,7 +1,5 @@
 """Dashboard aggregation endpoint."""
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +8,9 @@ from app.api.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models.analysis import Analysis
 from app.db.models.dataset import Dataset
-from app.db.models.order import TokenUsage
 from app.db.models.project import Project
 from app.db.models.user import User
+from app.services.resource_service import get_balance_summary
 
 router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
 
@@ -26,27 +24,11 @@ async def get_dashboard(
 
     uid = current_user.id
 
-    # Token balance
-    token_balance = current_user.token_balance
-    subscription = current_user.subscription
-
-    # Used this month
-    now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    usage_result = await db.execute(
-        select(func.coalesce(func.sum(TokenUsage.tokens_consumed), 0)).where(
-            TokenUsage.user_id == uid,
-            TokenUsage.created_at >= month_start,
-        )
-    )
-    used_this_month = usage_result.scalar() or 0
-    actual_usage_result = await db.execute(
-        select(func.coalesce(func.sum(TokenUsage.actual_tokens_consumed), 0)).where(
-            TokenUsage.user_id == uid,
-            TokenUsage.created_at >= month_start,
-        )
-    )
-    actual_used_this_month = actual_usage_result.scalar() or 0
+    balance_summary = await get_balance_summary(db, str(uid))
+    resource_balance = int(balance_summary["resource_balance"])
+    subscription = str(balance_summary["plan"])
+    used_this_month = int(balance_summary["used_this_month"])
+    actual_used_this_month = int(balance_summary["actual_used_this_month"])
 
     # Project count
     proj_count_result = await db.execute(
@@ -111,8 +93,17 @@ async def get_dashboard(
 
     return {
         "token_balance": {
-            "balance": token_balance,
+            "balance": resource_balance,
+            "resource_balance": resource_balance,
+            "token_balance": resource_balance,
+            "label": "资源",
             "plan": subscription,
+            "used_this_month": used_this_month,
+            "actual_used_this_month": actual_used_this_month,
+        },
+        "resource_balance": {
+            "balance": resource_balance,
+            "resource_balance": resource_balance,
             "used_this_month": used_this_month,
             "actual_used_this_month": actual_used_this_month,
         },

@@ -22,7 +22,6 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
-backend/demo_data/~$*
 
 # OS
 .DS_Store

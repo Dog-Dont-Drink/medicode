@@ -37,39 +37,39 @@ class PackageDefinition:
     id: str
     name: str
     amount: Decimal
-    tokens: int
+    resources: int
     badge: str
     features: Tuple[str, ...]
 
     @property
     def unit_price(self) -> str:
-        return str((self.amount / Decimal(self.tokens)).quantize(PRICE_SCALE, rounding=ROUND_HALF_UP))
+        return str((self.amount / Decimal(self.resources)).quantize(PRICE_SCALE, rounding=ROUND_HALF_UP))
 
 
 PACKAGE_CATALOG: Dict[str, PackageDefinition] = {
     "basic": PackageDefinition(
         id="basic",
-        name="基础包",
+        name="基础资源包",
         amount=Decimal("0.01"),
-        tokens=500,
+        resources=500,
         badge="",
-        features=("描述统计分析", "基础图表生成", "CSV/Excel 格式", "邮件支持"),
+        features=("500 资源点", "描述统计分析", "基础图表生成", "邮件支持"),
     ),
     "pro": PackageDefinition(
         id="pro",
-        name="专业包",
+        name="专业资源包",
         amount=Decimal("0.01"),
-        tokens=2500,
+        resources=2500,
         badge="最受欢迎",
-        features=("全部分析方法", "可复现 R 脚本", "专业报告导出", "优先技术支持"),
+        features=("2,500 资源点", "全部分析方法", "可复现 R 脚本", "优先技术支持"),
     ),
     "enterprise": PackageDefinition(
         id="enterprise",
-        name="企业包",
+        name="企业资源包",
         amount=Decimal("0.01"),
-        tokens=8000,
+        resources=8000,
         badge="",
-        features=("无限分析方法", "定制分析模块", "API 集成接口", "专属技术顾问"),
+        features=("8,000 资源点", "定制分析模块", "API 集成接口", "专属技术顾问"),
     ),
 }
 
@@ -147,7 +147,7 @@ async def create_order(db: AsyncSession, user: User, payload: PaymentCreateReque
         package_id=package.id,
         package_name=package.name,
         amount=package.amount,
-        tokens=package.tokens,
+        tokens=package.resources,
         status="pending",
         expire_at=expire_at,
     )

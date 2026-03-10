@@ -62,7 +62,7 @@
       <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
         <div class="flex justify-between"><span class="text-gray-500">分析方法</span><span class="font-medium text-gray-900">{{ methods.find(m => m.id === selectedMethod)?.name }}</span></div>
         <div class="flex justify-between"><span class="text-gray-500">自变量</span><span class="font-medium text-gray-900">{{ selectedVars.join(', ') || '未选择' }}</span></div>
-        <div class="flex justify-between"><span class="text-gray-500">预计Token消耗</span><span class="font-medium text-primary">~80 Token</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">会员功能扣费</span><span class="font-medium text-primary">AI解读 / PDF 导出各扣 1 资源</span></div>
       </div>
       <div class="flex justify-between pt-4">
         <button @click="currentStep = 1" class="btn-ghost">上一步</button>

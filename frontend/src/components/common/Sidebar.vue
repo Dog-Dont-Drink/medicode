@@ -73,7 +73,7 @@
           <div v-if="isSectionExpanded('regression')" class="ml-[26px] space-y-0.5 border-l border-gray-100 pb-1 pl-3">
             <router-link to="/analysis/linear-regression" :class="subLinkClass('/analysis/linear-regression', true)" @click="$emit('close')">线性回归</router-link>
             <router-link to="/analysis/lasso-regression" :class="subLinkClass('/analysis/lasso-regression', true)" @click="$emit('close')">LASSO回归</router-link>
-            <router-link to="/analysis/logistic-regression" :class="subLinkClass('/analysis/logistic-regression', true)" @click="$emit('close')">逻辑回归</router-link>
+            <router-link to="/analysis/logistic-regression" :class="subLinkClass('/analysis/logistic-regression', true)" @click="$emit('close')">Logistic回归</router-link>
             <router-link to="/analysis/cox-regression" :class="subLinkClass('/analysis/cox-regression', true)" @click="$emit('close')">Cox生存分析</router-link>
           </div>
         </div>
@@ -86,7 +86,15 @@
             <svg :class="['h-3.5 w-3.5 text-gray-300 transition-transform duration-200', isSectionExpanded('advanced') && 'rotate-90']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
           <div v-if="isSectionExpanded('advanced')" class="ml-[26px] space-y-0.5 border-l border-gray-100 pb-1 pl-3">
-            <a v-for="item in advancedItems" :key="item" class="sub-link">{{ item }}</a>
+            <router-link
+              v-for="item in advancedItems"
+              :key="item.path"
+              :to="item.path"
+              :class="subLinkClass(item.path, true)"
+              @click="$emit('close')"
+            >
+              <div class="font-medium">{{ item.label }}</div>
+            </router-link>
           </div>
         </div>
       </div>
@@ -102,8 +110,8 @@
         </router-link>
 
         <router-link to="/account/billing" :class="linkClass('/account/billing')" @click="$emit('close')">
-          <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8"/><path d="M12 18V6"/></svg>
-          <span>Token 充值</span>
+          <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+          <span>资源充值</span>
         </router-link>
       </div>
     </nav>
@@ -151,8 +159,13 @@ function subLinkClass(path: string, exact = false) {
   ]
 }
 
-const survivalItems = ['KM 生存曲线', 'Cox 回归', 'Log-rank 检验', '竞争风险模型']
-const advancedItems = ['ROC 曲线', 'Meta 分析', '倾向评分匹配', '亚组分析', '诊断试验']
+const advancedItems = [
+  {
+    path: '/analysis/clinical-model-builder',
+    label: '临床预测建模',
+    description: '拖拽模块搭建临床预测模型流程',
+  },
+]
 </script>
 
 <style scoped>
@@ -163,7 +176,7 @@ const advancedItems = ['ROC 曲线', 'Meta 分析', '倾向评分匹配', '亚�
   align-items: center;
   gap: 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: none;
   padding: 8px 12px;
   font-size: 13px;
@@ -177,12 +190,4 @@ const advancedItems = ['ROC 曲线', 'Meta 分析', '倾向评分匹配', '亚�
   background: #f9fafb;
 }
 
-.sub-link {
-  display: block;
-  cursor: default;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: #9ca3af;
-}
 </style>

@@ -38,6 +38,7 @@ export interface PaymentStatusResponse {
     orderId: string
     status: 'pending' | 'paid' | 'failed' | 'expired'
     paidAt?: string
+    resourcesAdded?: number
     tokensAdded?: number
 }
 
@@ -45,6 +46,7 @@ export interface OrderRecord {
     orderId: string
     packageName: string
     amount: number
+    resources: number
     tokens: number
     status: 'pending' | 'paid' | 'failed' | 'expired'
     createdAt: string
@@ -55,6 +57,7 @@ export interface PaymentPackage {
     id: string
     name: string
     price: number
+    resources: number
     tokens: number
     unitPrice: string
     badge: string
@@ -63,9 +66,16 @@ export interface PaymentPackage {
 
 export interface TokenBalanceResponse {
     balance: number
+    resource_balance: number
     plan: string
     used_this_month: number
     actual_used_this_month: number
+}
+
+export interface PdfDownloadResponse {
+    blob: Blob
+    remainingResources: number | null
+    chargedResources: number | null
 }
 
 export interface DatasetItem {
@@ -396,7 +406,14 @@ export interface LinearRegressionResponse {
     model_p_value: number | null
     formula: string
     assumptions: string[]
+    residual_normality_method: string
+    residual_normality_p_value: number | null
+    residual_normality_passed: boolean
+    homoscedasticity_test_method: string
+    homoscedasticity_p_value: number | null
+    homoscedasticity_passed: boolean
     coefficients: LinearRegressionCoefficient[]
+    plots: LassoPlotPayload[]
     note: string
 }
 
@@ -409,6 +426,7 @@ export interface LogisticRegressionRequest {
 
 export interface LogisticRegressionCoefficient {
     term: string
+    coefficient: number | null
     odds_ratio: number | null
     std_error: number | null
     z_value: number | null
@@ -435,7 +453,9 @@ export interface LogisticRegressionResponse {
     model_p_value: number | null
     formula: string
     assumptions: string[]
+    univariate_coefficients: LogisticRegressionCoefficient[]
     coefficients: LogisticRegressionCoefficient[]
+    plots: LassoPlotPayload[]
     note: string
 }
 
@@ -460,6 +480,8 @@ export interface LassoPlotPayload {
     filename: string
     media_type: string
     content_base64: string
+    vector_pdf_filename?: string | null
+    vector_pdf_base64?: string | null
 }
 
 export interface LassoRegressionResponse {
@@ -492,6 +514,7 @@ export interface CoxRegressionRequest {
 
 export interface CoxRegressionCoefficient {
     term: string
+    coefficient: number | null
     hazard_ratio: number | null
     std_error: number | null
     z_value: number | null
@@ -532,20 +555,202 @@ export interface CoxRegressionResponse {
     global_ph_p_value: number | null
     formula: string
     assumptions: string[]
+    univariate_coefficients: CoxRegressionCoefficient[]
     coefficients: CoxRegressionCoefficient[]
     proportional_hazards_tests: CoxRegressionPhTest[]
+    plots: LassoPlotPayload[]
     note: string
 }
 
 export interface RegressionInterpretRequest {
     dataset_id: string
-    analysis_kind: 'linear' | 'lasso' | 'logistic'
-    language: 'zh' | 'en'
+    analysis_kind: 'linear' | 'lasso' | 'logistic' | 'cox'
+    language?: 'zh' | 'en'
     payload: Record<string, unknown>
 }
 
+export interface ClinicalWorkflowNodeRequest {
+    id: string
+    module_id: string
+    label: string
+    stage_id: string
+    values: Record<string, string>
+}
+
+export interface SavedClinicalWorkflowNode {
+    id: string
+    module_id: string
+    label: string
+    description?: string | null
+    stage_id: string
+    values: Record<string, string>
+    x: number
+    y: number
+    order: number
+}
+
+export interface SavedClinicalWorkflowConnection {
+    id: string
+    from_node_id: string
+    to_node_id: string
+    output_port_id?: string | null
+}
+
+export interface ClinicalWorkflowSaveRequest {
+    project_id: string
+    name: string
+    description?: string | null
+    workflow_kind?: string
+    nodes: SavedClinicalWorkflowNode[]
+    connections: SavedClinicalWorkflowConnection[]
+}
+
+export interface ClinicalWorkflowUpdateRequest {
+    name: string
+    description?: string | null
+    nodes: SavedClinicalWorkflowNode[]
+    connections: SavedClinicalWorkflowConnection[]
+}
+
+export interface ClinicalWorkflowSummaryResponse {
+    id: string
+    project_id: string
+    name: string
+    description?: string | null
+    workflow_kind: string
+    node_count: number
+    connection_count: number
+    created_at: string
+    updated_at: string
+}
+
+export interface ClinicalWorkflowDetailResponse extends ClinicalWorkflowSummaryResponse {
+    nodes: SavedClinicalWorkflowNode[]
+    connections: SavedClinicalWorkflowConnection[]
+}
+
+export interface ClinicalWorkflowValidationIssue {
+    severity: 'error' | 'warning'
+    code: string
+    message: string
+    node_id?: string | null
+    connection_id?: string | null
+}
+
+export interface ClinicalWorkflowValidationRequest {
+    project_id: string
+    workflow_kind?: string
+    nodes: SavedClinicalWorkflowNode[]
+    connections: SavedClinicalWorkflowConnection[]
+}
+
+export interface ClinicalWorkflowValidationResponse {
+    is_valid: boolean
+    issues: ClinicalWorkflowValidationIssue[]
+    root_node_ids: string[]
+    leaf_node_ids: string[]
+}
+
+export interface ClinicalPipelineRunRequest {
+    project_id: string
+    dataset_id: string
+    workflow_id?: string | null
+    template_kind: 'binary' | 'survival'
+    outcome_variable?: string | null
+    time_variable?: string | null
+    event_variable?: string | null
+    predictor_variables: string[]
+    alpha?: number
+    nfolds?: number
+    workflow_nodes: ClinicalWorkflowNodeRequest[]
+    workflow_connections?: SavedClinicalWorkflowConnection[]
+    skip_completed?: boolean
+}
+
+export interface ClinicalPipelineNodeResult {
+    node_id: string
+    module_id: string
+    label: string
+    stage_id: string
+    status: 'completed' | 'configured' | 'unsupported' | 'skipped' | 'failed'
+    message: string
+    details: string[]
+    input_snapshot: Record<string, unknown>
+    output_summary: Record<string, unknown>
+    output_tables: Array<{ name: string; columns: string[]; rows: Array<Array<string | number | boolean | null>> }>
+    output_plots: Array<Record<string, unknown>>
+    artifacts: ClinicalPipelineArtifactResult[]
+    logs: string[]
+    next_dataset_ref?: string | null
+    next_variable_set: string[]
+    created_at?: string | null
+}
+
+export interface ClinicalPipelineArtifactResult {
+    id?: string | null
+    artifact_type: string
+    name: string
+    filename?: string | null
+    media_type?: string | null
+    storage_key?: string | null
+    payload: Record<string, unknown>
+}
+
+export interface ClinicalPipelineDatasetState {
+    dataset_name: string
+    original_rows: number
+    original_columns: number
+    analysis_rows: number
+    analysis_columns: number
+    cleaning_operations: string[]
+    summary: DatasetSummaryResponse
+}
+
+export interface ClinicalPipelineRunResponse {
+    run_id?: string | null
+    template_kind: 'binary' | 'survival' | 'continuous'
+    dataset_id: string
+    dataset_state: ClinicalPipelineDatasetState
+    final_predictors: string[]
+    node_results: ClinicalPipelineNodeResult[]
+    logs: string[]
+    engine_notes: string[]
+    lasso_result: LassoRegressionResponse | null
+    logistic_result: LogisticRegressionResponse | null
+    cox_result: CoxRegressionResponse | null
+}
+
+export interface ClinicalPipelineRunSummaryResponse {
+    run_id: string
+    project_id: string
+    dataset_id: string
+    workflow_id?: string | null
+    template_kind: 'binary' | 'survival' | 'continuous'
+    status: string
+    final_predictor_count: number
+    node_count: number
+    artifact_count: number
+    created_at: string
+    completed_at?: string | null
+}
+
+export interface ClinicalPipelineRunDetailResponse extends ClinicalPipelineRunResponse {
+    project_id: string
+    workflow_id?: string | null
+    status: string
+    created_at: string
+    completed_at?: string | null
+    request_payload: Record<string, unknown>
+}
+
+export interface ClinicalPipelineNodeDetailResponse extends ClinicalPipelineNodeResult {
+    run_id: string
+    execution_order: number
+    created_at: string
+}
+
 export interface RegressionExportRequest {
-    analysis_kind: 'linear' | 'lasso' | 'logistic'
+    analysis_kind: 'linear' | 'lasso' | 'logistic' | 'cox'
     payload: Record<string, unknown>
 }
 
@@ -556,27 +761,30 @@ export interface LassoPlotPdfExportRequest {
 
 export interface RegressionInterpretResponse {
     feature_name: string
-    analysis_kind: 'linear' | 'lasso' | 'logistic'
+    analysis_kind: 'linear' | 'lasso' | 'logistic' | 'cox'
     language: 'zh' | 'en'
     model: string
     content: string
     analysis_id?: string | null
     saved_at?: string | null
     llm_tokens_used: number
+    charged_resources: number
     charged_tokens: number
+    remaining_resources: number
     remaining_balance: number
 }
 
 export interface SavedRegressionInterpretResponse {
     found: boolean
     feature_name?: string | null
-    analysis_kind?: 'linear' | 'lasso' | 'logistic' | null
+    analysis_kind?: 'linear' | 'lasso' | 'logistic' | 'cox' | null
     language?: 'zh' | 'en' | null
     model?: string | null
     content?: string | null
     analysis_id?: string | null
     saved_at?: string | null
     llm_tokens_used: number
+    charged_resources: number
     charged_tokens: number
 }
 
@@ -614,7 +822,9 @@ export interface TableOneInterpretResponse {
     analysis_id?: string | null
     saved_at?: string | null
     llm_tokens_used: number
+    charged_resources: number
     charged_tokens: number
+    remaining_resources: number
     remaining_balance: number
 }
 
@@ -627,6 +837,7 @@ export interface SavedTableOneInterpretResponse {
     analysis_id?: string | null
     saved_at?: string | null
     llm_tokens_used: number
+    charged_resources: number
     charged_tokens: number
 }
 
@@ -917,6 +1128,73 @@ export async function runCoxRegression(data: CoxRegressionRequest) {
     return res.data as CoxRegressionResponse
 }
 
+export async function runClinicalPipeline(data: ClinicalPipelineRunRequest) {
+    const res = await apiClient.post('/api/v1/advanced-analysis/clinical-pipeline/run', data)
+    return res.data as ClinicalPipelineRunResponse
+}
+
+export async function listClinicalPipelineRuns(projectId: string, workflowId?: string) {
+    const res = await apiClient.get('/api/v1/advanced-analysis/runs', {
+        params: {
+            project_id: projectId,
+            workflow_id: workflowId || undefined,
+        },
+    })
+    return res.data as ClinicalPipelineRunSummaryResponse[]
+}
+
+export async function getClinicalPipelineRun(runId: string) {
+    const res = await apiClient.get(`/api/v1/advanced-analysis/runs/${runId}`)
+    return res.data as ClinicalPipelineRunDetailResponse
+}
+
+export async function getClinicalPipelineRunNode(runId: string, nodeId: string) {
+    const res = await apiClient.get(`/api/v1/advanced-analysis/runs/${runId}/nodes/${encodeURIComponent(nodeId)}`)
+    return res.data as ClinicalPipelineNodeDetailResponse
+}
+
+export async function downloadClinicalPipelineArtifact(artifactId: string) {
+    const res = await apiClient.get(`/api/v1/advanced-analysis/artifacts/${artifactId}/download`, {
+        responseType: 'blob',
+    })
+    return {
+        blob: res.data as Blob,
+        contentType: res.headers['content-type'] as string | undefined,
+    }
+}
+
+export async function listClinicalWorkflows(projectId: string) {
+    const res = await apiClient.get('/api/v1/advanced-analysis/workflows', {
+        params: { project_id: projectId },
+    })
+    return res.data as ClinicalWorkflowSummaryResponse[]
+}
+
+export async function getClinicalWorkflow(workflowId: string) {
+    const res = await apiClient.get(`/api/v1/advanced-analysis/workflows/${workflowId}`)
+    return res.data as ClinicalWorkflowDetailResponse
+}
+
+export async function saveClinicalWorkflow(data: ClinicalWorkflowSaveRequest) {
+    const res = await apiClient.post('/api/v1/advanced-analysis/workflows', data)
+    return res.data as ClinicalWorkflowDetailResponse
+}
+
+export async function updateClinicalWorkflow(workflowId: string, data: ClinicalWorkflowUpdateRequest) {
+    const res = await apiClient.put(`/api/v1/advanced-analysis/workflows/${workflowId}`, data)
+    return res.data as ClinicalWorkflowDetailResponse
+}
+
+export async function validateClinicalWorkflow(data: ClinicalWorkflowValidationRequest) {
+    const res = await apiClient.post('/api/v1/advanced-analysis/workflows/validate', data)
+    return res.data as ClinicalWorkflowValidationResponse
+}
+
+export async function deleteClinicalWorkflow(workflowId: string) {
+    const res = await apiClient.delete(`/api/v1/advanced-analysis/workflows/${workflowId}`)
+    return res.data as { success: boolean }
+}
+
 export async function downloadTableOneExcel(data: TableOneRequest) {
     const res = await apiClient.post('/api/v1/descriptive/table1/export', data, {
         responseType: 'blob',
@@ -955,12 +1233,54 @@ export async function downloadLassoPlotPdf(data: LassoPlotPdfExportRequest) {
     const res = await apiClient.post('/api/v1/descriptive/lasso-regression/plot/pdf', data, {
         responseType: 'blob',
     })
-    return res.data as Blob
+    return {
+        blob: res.data as Blob,
+        remainingResources: Number(res.headers['x-resource-balance'] || '') || null,
+        chargedResources: Number(res.headers['x-resource-charge'] || '') || null,
+    } as PdfDownloadResponse
+}
+
+export async function downloadLinearPlotPdf(data: LassoPlotPdfExportRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/linear-regression/plot/pdf', data, {
+        responseType: 'blob',
+    })
+    return {
+        blob: res.data as Blob,
+        remainingResources: Number(res.headers['x-resource-balance'] || '') || null,
+        chargedResources: Number(res.headers['x-resource-charge'] || '') || null,
+    } as PdfDownloadResponse
+}
+
+export async function downloadLogisticPlotPdf(data: LassoPlotPdfExportRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/logistic-regression/plot/pdf', data, {
+        responseType: 'blob',
+    })
+    return {
+        blob: res.data as Blob,
+        remainingResources: Number(res.headers['x-resource-balance'] || '') || null,
+        chargedResources: Number(res.headers['x-resource-charge'] || '') || null,
+    } as PdfDownloadResponse
+}
+
+export async function downloadCoxPlotPdf(data: LassoPlotPdfExportRequest) {
+    const res = await apiClient.post('/api/v1/descriptive/cox-regression/plot/pdf', data, {
+        responseType: 'blob',
+    })
+    return {
+        blob: res.data as Blob,
+        remainingResources: Number(res.headers['x-resource-balance'] || '') || null,
+        chargedResources: Number(res.headers['x-resource-charge'] || '') || null,
+    } as PdfDownloadResponse
 }
 
 export async function getReports() {
     const res = await apiClient.get('/api/v1/reports')
     return res.data as ReportListItem[]
+}
+
+export async function deleteReport(analysisId: string) {
+    const res = await apiClient.delete(`/api/v1/reports/${analysisId}`)
+    return res.data as { success: boolean }
 }
 
 export async function getAdminDashboard() {

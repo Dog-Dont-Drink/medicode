@@ -19,7 +19,9 @@ interface BackendUser {
     avatar_url?: string | null
     avatar?: string | null
     role?: 'user' | 'admin'
+    resource_balance?: number
     token_balance?: number
+    resourceBalance?: number
     tokenBalance?: number
     subscription?: string | null
 }
@@ -60,7 +62,7 @@ function normalizeUser(userData: BackendUser): User {
         name: userData.name,
         avatar: userData.avatar_url || userData.avatar || '',
         role: userData.role || 'user',
-        tokenBalance: userData.token_balance ?? userData.tokenBalance ?? 0,
+        tokenBalance: userData.resource_balance ?? userData.resourceBalance ?? userData.token_balance ?? userData.tokenBalance ?? 0,
         subscription: userData.subscription || 'free',
     }
 }

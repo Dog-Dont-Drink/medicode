@@ -48,8 +48,8 @@ class Settings(BaseSettings):
     # SMTP
     SMTP_SERVER: str = "smtp.163.com"
     SMTP_PORT: int = 465
-    SMTP_USER: str = "medicode@163.com"
-    SMTP_PASSWORD: str = "XWpprxpQrGiue9ui"
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
     SMTP_USE_TLS: bool = True
     SMTP_START_TLS: bool = False
 
@@ -58,9 +58,16 @@ class Settings(BaseSettings):
 
     # LLM
     LLM_API_BASE_URL: str = "https://api.deepseek.com"
-    LLM_API_KEY: str = "sk-ddfd45647826400491f6aeabf6f38a17"
+    LLM_API_KEY: str = ""
     LLM_MODEL: str = "deepseek-chat"
     LLM_TIMEOUT_SECONDS: int = 60
+
+    # Resource billing
+    DEFAULT_RESOURCE_BALANCE: int = 100
+    AI_INTERPRETATION_RESOURCE_COST: int = 1
+    PDF_EXPORT_RESOURCE_COST: int = 1
+    RESOURCE_LABEL: str = "资源"
+    RESOURCE_ICON: str = "⚡"
 
     # R runtime
     RSCRIPT_COMMAND: str = "Rscript"
@@ -68,7 +75,11 @@ class Settings(BaseSettings):
     R_PACKAGE_REPO: str = "https://cloud.r-project.org"
     R_INSTALL_TIMEOUT_SECONDS: int = 900
 
-    model_config = {"env_file": str(ENV_FILE), "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": str(ENV_FILE),
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 @lru_cache

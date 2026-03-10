@@ -19,6 +19,7 @@ class PaymentStatusResponse(BaseModel):
     orderId: str
     status: str
     paidAt: str | None = None
+    resourcesAdded: int | None = None
     tokensAdded: int | None = None
 
 
@@ -26,6 +27,7 @@ class OrderRecord(BaseModel):
     orderId: str
     packageName: str
     amount: float
+    resources: int
     tokens: int
     status: str
     createdAt: str
@@ -36,6 +38,7 @@ class PaymentPackage(BaseModel):
     id: str
     name: str
     price: float
+    resources: int
     tokens: int
     unitPrice: str
     badge: str

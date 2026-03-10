@@ -232,7 +232,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center max-w-2xl mx-auto mb-16">
           <span class="text-sm font-medium text-primary uppercase tracking-wider">价格方案</span>
-          <h2 class="text-3xl sm:text-4xl font-heading font-bold text-gray-900 mt-3">灵活的 Token 套餐</h2>
+          <h2 class="text-3xl sm:text-4xl font-heading font-bold text-gray-900 mt-3">灵活的资源套餐</h2>
           <p class="text-lg text-gray-500 mt-4">按分析量付费，无月费负担</p>
         </div>
 
@@ -247,7 +247,7 @@
             <div class="mt-4">
               <span :class="['text-4xl font-heading font-bold', activePlan === plan.name ? 'text-white' : 'text-gray-900']">¥{{ plan.price }}</span>
             </div>
-            <p :class="['text-sm mt-1', activePlan === plan.name ? 'text-white/70' : 'text-gray-500']">{{ plan.tokens }} Token</p>
+            <p :class="['text-sm mt-1', activePlan === plan.name ? 'text-white/70' : 'text-gray-500']">{{ plan.tokens }} 资源</p>
             <ul class="mt-6 space-y-3 text-left">
               <li v-for="feat in plan.features" :key="feat" class="flex items-center gap-2 text-sm" :class="activePlan === plan.name ? 'text-white/90' : 'text-gray-600'">
                 <svg class="w-4 h-4 flex-shrink-0" :class="activePlan === plan.name ? 'text-white' : 'text-green-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -278,7 +278,7 @@
 
           <div class="relative">
             <h2 class="text-3xl sm:text-4xl font-heading font-bold text-white">准备好开始分析了吗？</h2>
-            <p class="text-lg text-white/80 mt-4 max-w-2xl mx-auto">注册即赠 200 Token，免费体验全部统计分析功能</p>
+            <p class="text-lg text-white/80 mt-4 max-w-2xl mx-auto">注册即赠 200 资源，免费体验全部统计分析功能</p>
             <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <router-link to="/auth/register" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-primary font-semibold rounded-xl hover:bg-gray-50 transition-all shadow-lg cursor-pointer">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

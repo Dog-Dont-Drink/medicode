@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core.exceptions import Forbidden, NotFound
 from app.db.database import get_db
 from app.db.models.analysis import Analysis, AnalysisResult
 from app.db.models.dataset import Dataset
@@ -15,6 +18,17 @@ from app.db.models.user import User
 from app.schemas.report import ReportListItemResponse
 
 router = APIRouter(prefix="/reports", tags=["报告"])
+
+
+def _report_type_filter():
+    return or_(
+        Analysis.analysis_type == "table1_interpretation",
+        Analysis.analysis_type.like("%_regression_interpretation"),
+    )
+
+
+def _is_supported_report_type(analysis_type: str) -> bool:
+    return analysis_type == "table1_interpretation" or analysis_type.endswith("_regression_interpretation")
 
 
 @router.get("", response_model=list[ReportListItemResponse])
@@ -30,10 +44,7 @@ async def list_reports(
         .outerjoin(Dataset, Dataset.id == Analysis.dataset_id)
         .where(
             Analysis.created_by == current_user.id,
-            or_(
-                Analysis.analysis_type == "table1_interpretation",
-                Analysis.analysis_type.like("%_regression_interpretation"),
-            ),
+            _report_type_filter(),
             Analysis.status == "completed",
         )
         .order_by(Analysis.executed_at.desc(), Analysis.created_at.desc())
@@ -68,3 +79,24 @@ async def list_reports(
         )
 
     return reports
+
+
+@router.delete("/{analysis_id}")
+async def delete_report(
+    analysis_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a saved report for the current user."""
+    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise NotFound("报告不存在")
+    if analysis.created_by != current_user.id:
+        raise Forbidden("无权删除该报告")
+    if analysis.status != "completed" or not _is_supported_report_type(analysis.analysis_type):
+        raise NotFound("报告不存在")
+
+    await db.delete(analysis)
+    await db.flush()
+    return {"success": True}

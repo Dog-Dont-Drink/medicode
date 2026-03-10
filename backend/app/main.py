@@ -16,7 +16,7 @@ from app.db.database import engine
 from app.db.models.base import Base
 
 # Import all models so Base.metadata knows about them
-from app.db.models import user, project, dataset, analysis, order  # noqa: F401
+from app.db.models import user, project, dataset, analysis, order, project_workflow, workflow_run  # noqa: F401
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

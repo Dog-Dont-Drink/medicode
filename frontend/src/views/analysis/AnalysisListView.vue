@@ -28,7 +28,7 @@
             <div class="flex items-center gap-4 mt-3 text-xs text-gray-400">
               <span>创建于 {{ analysis.createdAt }}</span>
               <span>耗时 {{ analysis.duration }}</span>
-              <span>Token: {{ analysis.tokens }}</span>
+              <span>资源: {{ analysis.tokens }}</span>
             </div>
           </div>
           <button class="btn-ghost btn-sm flex-shrink-0">查看结果</button>

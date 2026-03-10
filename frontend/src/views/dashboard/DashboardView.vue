@@ -77,11 +77,10 @@
         </div>
       </div>
 
-      <!-- Token Overview (1/3) -->
+      <!-- Resource Overview (1/3) -->
       <div class="card">
-        <h2 class="text-lg font-heading font-semibold text-gray-900 mb-6">Token 概览</h2>
+        <h2 class="text-lg font-heading font-semibold text-gray-900 mb-6">资源概览</h2>
 
-        <!-- Token Balance Circle -->
         <div class="flex flex-col items-center mb-6">
           <div class="relative w-32 h-32">
             <svg class="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
@@ -97,12 +96,11 @@
             </svg>
             <div class="absolute inset-0 flex flex-col items-center justify-center">
               <span class="text-2xl font-heading font-bold text-gray-900">{{ tokenBalance }}</span>
-              <span class="text-xs text-gray-500">剩余 Token</span>
+              <span class="text-xs text-gray-500">剩余资源</span>
             </div>
           </div>
         </div>
 
-        <!-- Token Details -->
         <div class="space-y-3">
           <div class="flex items-center justify-between text-sm">
             <span class="text-gray-500">本月已用</span>
@@ -121,7 +119,7 @@
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 18V6"/>
           </svg>
-          购买更多 Token
+          购买更多资源
         </router-link>
       </div>
     </div>
@@ -161,21 +159,24 @@ const dashboardError = ref('')
 
 const tokenBalance = computed(() => {
   if (!dashboardData.value) return '0'
-  return dashboardData.value.token_balance.balance.toLocaleString()
+  const balanceCard = dashboardData.value.resource_balance || dashboardData.value.token_balance
+  return (balanceCard?.resource_balance ?? balanceCard?.balance ?? 0).toLocaleString()
 })
 const tokenUsed = computed(() => {
   if (!dashboardData.value) return '0'
-  return dashboardData.value.token_balance.used_this_month.toLocaleString()
+  const balanceCard = dashboardData.value.resource_balance || dashboardData.value.token_balance
+  return (balanceCard?.used_this_month ?? 0).toLocaleString()
 })
 const tokenTotal = computed(() => {
   if (!dashboardData.value) return '0'
-  // Using balance + used_this_month as an approximation of the total limit for display purposes if no plan limit is returned
-  return (dashboardData.value.token_balance.balance + dashboardData.value.token_balance.used_this_month).toLocaleString()
+  const balanceCard = dashboardData.value.resource_balance || dashboardData.value.token_balance
+  return ((balanceCard?.resource_balance ?? balanceCard?.balance ?? 0) + (balanceCard?.used_this_month ?? 0)).toLocaleString()
 })
 const tokenUsagePercent = computed(() => {
   if (!dashboardData.value) return 0
-  const used = dashboardData.value.token_balance.used_this_month
-  const total = dashboardData.value.token_balance.balance + dashboardData.value.token_balance.used_this_month
+  const balanceCard = dashboardData.value.resource_balance || dashboardData.value.token_balance
+  const used = balanceCard?.used_this_month ?? 0
+  const total = (balanceCard?.resource_balance ?? balanceCard?.balance ?? 0) + used
   if (total === 0) return 0
   return Math.round((used / total) * 100)
 })
@@ -225,14 +226,14 @@ const stats = computed(() => {
       iconPath: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     },
     {
-      title: 'Token 余额',
+      title: '资源余额',
       value: tokenBalance.value.toString(),
       change: '',
       changeUp: false,
       changeColor: 'text-amber-600',
       bgColor: 'bg-green-50',
       iconColor: 'text-green-500',
-      iconPath: '<circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 010 4H8"/><path d="M12 18V6"/>',
+      iconPath: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
     },
   ]
 })
@@ -280,7 +281,7 @@ const quickActions = [
     iconPath: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
   },
   {
-    label: '购买Token',
+    label: '购买资源',
     desc: '充值分析额度',
     route: '/account/billing',
     bgColor: 'bg-green-50',

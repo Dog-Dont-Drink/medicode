@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <div class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-5 py-4">
+    <div class="panel-card bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-5 py-4">
       <p class="text-sm font-semibold text-slate-900">基线特征</p>
       <p class="mt-1 text-sm leading-6 text-slate-600">
         自动生成基线特征表。系统会按分组变量自动选择组间比较方法，并输出符合 SCI 阅读习惯的三线表预览，同时支持导出 Excel。
@@ -9,7 +9,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
       <div class="xl:col-span-4">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div>
             <h2 class="text-sm font-semibold text-gray-900">分析配置</h2>
             <p class="mt-1 text-xs text-gray-400">先选数据集和分组变量，再勾选需要进入基线表的变量。</p>
@@ -18,7 +18,7 @@
           <div class="mt-5 space-y-4">
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">数据集</label>
-              <select v-model="selectedDatasetId" @change="handleDatasetChange" :disabled="loadingDatasets" class="input-field py-2.5 text-sm">
+              <select v-model="selectedDatasetId" @change="handleDatasetChange" :disabled="loadingDatasets" class="tool-input">
                 <option value="">请选择数据集</option>
                 <option v-for="dataset in datasetOptions" :key="dataset.id" :value="dataset.id">
                   {{ dataset.name }} · {{ dataset.projectName }}
@@ -28,7 +28,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">分组变量</label>
-              <select v-model="groupVariable" @change="handleGroupVariableChange" :disabled="!datasetSummary || !groupVariableOptions.length" class="input-field py-2.5 text-sm">
+              <select v-model="groupVariable" @change="handleGroupVariableChange" :disabled="!datasetSummary || !groupVariableOptions.length" class="tool-input">
                 <option value="">请选择分组变量</option>
                 <option v-for="column in groupVariableOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · {{ column.unique_count }} 组
@@ -38,7 +38,7 @@
             </div>
 
             <div class="grid grid-cols-1 gap-4">
-              <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
+              <div class="panel-subtle p-3">
                 <div class="flex items-center justify-between gap-3">
                   <div>
                     <p class="text-xs font-semibold text-gray-700">连续变量</p>
@@ -48,7 +48,7 @@
                     {{ selectedContinuousVariables.length === continuousVariableOptions.length && continuousVariableOptions.length ? '清空' : '全选' }}
                   </button>
                 </div>
-                <div class="mt-3 rounded-lg border border-white bg-white p-2.5">
+                <div class="panel-card-tight mt-3 border-white p-2.5">
                   <p class="text-[11px] text-gray-500">{{ describeSelection(selectedContinuousVariables, continuousVariableOptions.length, '连续变量') }}</p>
                   <div class="mt-2 grid max-h-40 grid-cols-2 gap-2 overflow-y-auto pr-1">
                     <label v-for="column in continuousVariableOptions" :key="column.name" class="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-gray-600">
@@ -59,7 +59,7 @@
                 </div>
               </div>
 
-              <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
+              <div class="panel-subtle p-3">
                 <div class="flex items-center justify-between gap-3">
                   <div>
                     <p class="text-xs font-semibold text-gray-700">分类变量</p>
@@ -69,7 +69,7 @@
                     {{ selectedCategoricalVariables.length === categoricalVariableOptions.length && categoricalVariableOptions.length ? '清空' : '全选' }}
                   </button>
                 </div>
-                <div class="mt-3 rounded-lg border border-white bg-white p-2.5">
+                <div class="panel-card-tight mt-3 border-white p-2.5">
                   <p class="text-[11px] text-gray-500">{{ describeSelection(selectedCategoricalVariables, categoricalVariableOptions.length, '分类变量') }}</p>
                   <div class="mt-2 grid max-h-40 grid-cols-2 gap-2 overflow-y-auto pr-1">
                     <label v-for="column in categoricalVariableOptions" :key="column.name" class="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-gray-600">
@@ -83,14 +83,14 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">保留小数位</label>
-              <select v-model.number="decimals" @change="markPreviewStale" class="input-field py-2.5 text-sm">
+              <select v-model.number="decimals" @change="markPreviewStale" class="tool-input">
                 <option :value="1">1 位</option>
                 <option :value="2">2 位</option>
                 <option :value="3">3 位</option>
               </select>
             </div>
 
-            <button @click="generatePreview" :disabled="isGenerating || !selectedDatasetId || !groupVariable" class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">
+            <button @click="() => generatePreview()" :disabled="isGenerating || !selectedDatasetId || !groupVariable" class="tool-btn-primary w-full px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
               <svg v-if="isGenerating" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
               </svg>
@@ -105,7 +105,7 @@
       </div>
 
       <div class="space-y-6 xl:col-span-8">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div>
             <h2 class="text-sm font-semibold text-gray-900">分析摘要</h2>
             <p class="mt-1 text-xs text-gray-400">自动识别分组数量、正态性和比较方法，适合直接整理进论文基线表。</p>
@@ -113,29 +113,29 @@
 
           <div v-if="tableOneResult" class="mt-5 space-y-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <div class="panel-card border-slate-200 bg-slate-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">数据集</p>
                 <p class="mt-2 text-sm font-semibold text-gray-900">{{ tableOneResult.dataset_name }}</p>
                 <p class="mt-1 text-xs text-gray-500">分组变量：{{ tableOneResult.group_variable }}</p>
               </div>
-              <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
+              <div class="panel-card border-sky-200 bg-sky-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">组别</p>
                 <p class="mt-2 text-xl font-semibold text-gray-900">{{ tableOneResult.group_levels.length }}</p>
                 <p class="mt-1 text-xs text-gray-500">{{ tableOneResult.group_levels.join(' / ') }}</p>
               </div>
-              <div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
+              <div class="panel-card border-emerald-200 bg-emerald-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">连续变量</p>
                 <p class="mt-2 text-xl font-semibold text-gray-900">{{ tableOneResult.continuous_variables.length }}</p>
                 <p class="mt-1 text-xs text-gray-500">非正态 {{ tableOneResult.nonnormal_variables.length }} 个</p>
               </div>
-              <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+              <div class="panel-card border-amber-200 bg-amber-50/80 p-4">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">分类变量</p>
                 <p class="mt-2 text-xl font-semibold text-gray-900">{{ tableOneResult.categorical_variables.length }}</p>
                 <p class="mt-1 text-xs text-gray-500">{{ selectedVariableCount }} 个变量进入基线表</p>
               </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+            <div class="panel-subtle p-4">
               <div class="flex flex-wrap gap-2">
                 <span class="inline-flex rounded-full border border-white bg-white px-3 py-1.5 text-xs text-gray-600 shadow-sm">
                   正态性检验：{{ tableOneResult.normality_method }}
@@ -161,7 +161,7 @@
           </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div class="flex items-center justify-between gap-3">
             <div>
               <h2 class="text-sm font-semibold text-gray-900">基线特征预览</h2>
@@ -197,134 +197,26 @@
               </table>
             </div>
 
-            <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <div class="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2">
-                <div class="relative inline-flex rounded-full bg-white p-1 shadow-sm">
-                  <span
-                    class="absolute top-1 h-8 w-[4.75rem] rounded-full bg-emerald-500 transition-transform duration-200"
-                    :class="interpretationLanguage === 'zh' ? 'translate-x-0' : 'translate-x-[4.75rem]'"
-                  />
-                  <button
-                    type="button"
-                    class="relative z-10 inline-flex h-8 w-[4.75rem] items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                    :class="interpretationLanguage === 'zh' ? 'text-white' : 'text-slate-500'"
-                    @click="setInterpretationLanguage('zh')"
-                  >
-                    中文
-                  </button>
-                  <button
-                    type="button"
-                    class="relative z-10 inline-flex h-8 w-[4.75rem] items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                    :class="interpretationLanguage === 'en' ? 'text-white' : 'text-slate-500'"
-                    @click="setInterpretationLanguage('en')"
-                  >
-                    English
-                  </button>
-                </div>
-
-                <button
-                  @click="interpretResult"
-                  :disabled="isInterpreting"
-                  class="inline-flex h-10 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 3L13.8 8.2L19 10L13.8 11.8L12 17L10.2 11.8L5 10L10.2 8.2L12 3Z" />
-                    <path d="M19 16L19.9 18.1L22 19L19.9 19.9L19 22L18.1 19.9L16 19L18.1 18.1L19 16Z" />
-                  </svg>
-                  {{ isInterpreting ? '解读中...' : 'AI结果解读' }}
-                </button>
-              </div>
-
-              <button
-                @click="downloadExcel"
-                :disabled="isDownloading"
-                class="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 3V15" />
-                  <path d="M7 10L12 15L17 10" />
-                  <path d="M5 21H19" />
-                </svg>
-                {{ isDownloading ? '下载中...' : '下载 Excel' }}
-              </button>
-            </div>
-
-            <div class="mt-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <p class="text-sm font-semibold text-slate-900">AI结果解读</p>
-                    <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                      高级功能
-                    </span>
-                  </div>
-                  <p class="mt-1 text-xs leading-5 text-slate-500">
-                    依据当前三线表自动生成论文级结果段落，适合直接作为 Results 初稿。
-                  </p>
-                </div>
-                <p class="text-[11px] text-slate-400">
-                  {{ interpretationLanguage === 'zh' ? '输出语言：中文' : 'Output: English' }}
-                </p>
-              </div>
-
-              <div
-                v-if="isInterpreting"
-                class="mt-4 rounded-2xl border border-white bg-white/90 px-4 py-4 shadow-sm"
-              >
-                <div class="flex items-center gap-3">
-                  <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                    <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <path d="M21 12a9 9 0 1 1-3.47-7.09" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p class="text-sm font-semibold text-slate-900">AI 正在整理结果描述</p>
-                    <p class="mt-1 text-xs text-slate-500">根据当前基线特征提炼论文式 Results 段落，请稍候。</p>
-                  </div>
-                </div>
-                <div class="mt-4 space-y-2.5">
-                  <div class="h-3 w-full animate-pulse rounded-full bg-slate-100"></div>
-                  <div class="h-3 w-11/12 animate-pulse rounded-full bg-slate-100"></div>
-                  <div class="h-3 w-10/12 animate-pulse rounded-full bg-slate-100"></div>
-                  <div class="h-3 w-8/12 animate-pulse rounded-full bg-slate-100"></div>
-                </div>
-              </div>
-              <div v-else-if="interpretationContent" class="mt-4 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-sm">
-                <div class="relative">
-                  <p class="whitespace-pre-line pr-12 text-sm leading-7 text-slate-700">{{ interpretationContent }}</p>
-                  <button
-                    type="button"
-                    class="absolute bottom-0 right-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-primary/30 hover:text-primary"
-                    @click="copyInterpretation"
-                    :aria-label="copiedInterpretation ? '已复制结果解读' : '复制结果解读'"
-                    :title="copiedInterpretation ? '已复制' : '复制到剪切板'"
-                  >
-                    <svg v-if="copiedInterpretation" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20 6L9 17L4 12" />
-                    </svg>
-                    <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="9" y="9" width="11" height="11" rx="2" />
-                      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
-                    </svg>
-                  </button>
-                </div>
-                <div class="mt-3 flex flex-wrap gap-2">
-                  <span v-if="interpretationBilledTokens" class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-700">
-                    本次消耗 {{ interpretationBilledTokens }} tokens
-                  </span>
-                  <span v-if="interpretationRemainingBalance !== null" class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[11px] text-amber-700">
-                    剩余 {{ interpretationRemainingBalance }} tokens
-                  </span>
-                  <span v-if="interpretationSavedAt" class="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-[11px] text-sky-700">
-                    已保存 {{ new Date(interpretationSavedAt).toLocaleString() }}
-                  </span>
-                </div>
-                
-              </div>
-              <div v-else class="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-5 text-sm text-slate-400">
-                生成基线特征后，可在此调用 AI结果解读，输出适合论文 Results 部分的描述段落。
-              </div>
-            </div>
+            <InsightActionPanel
+              class="mt-5"
+              :language="interpretationLanguage"
+              :is-interpreting="isInterpreting"
+              :is-downloading="isDownloading"
+              :content="interpretationContent"
+              :copied="copiedInterpretation"
+              :charged-resources="interpretationBilledTokens"
+              :remaining-resources="interpretationRemainingBalance"
+              :saved-at="interpretationSavedAt"
+              description="依据当前三线表自动生成论文级结果段落，适合直接作为 Results 初稿。"
+              loading-description="根据当前基线特征提炼论文式 Results 段落，请稍候。"
+              empty-text="生成基线特征后，可在此调用 AI结果解读，输出适合论文 Results 部分的描述段落。"
+              :interpret-disabled="isInterpreting"
+              :download-disabled="isDownloading"
+              @language-change="setInterpretationLanguage"
+              @interpret="interpretResult"
+              @download="downloadExcel"
+              @copy="copyInterpretation"
+            />
           </div>
 
           <div v-else class="py-16 text-center text-sm text-gray-400">
@@ -338,6 +230,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import InsightActionPanel from '@/components/analysis/InsightActionPanel.vue'
 import {
   downloadTableOneExcel,
   generateTableOne,
@@ -652,8 +545,8 @@ async function loadSavedInterpretation() {
 
     interpretationContent.value = saved.content || ''
     interpretationModel.value = saved.model || ''
-    interpretationActualTokens.value = saved.llm_tokens_used || saved.actual_tokens || 0
-    interpretationBilledTokens.value = saved.charged_tokens || saved.billed_tokens || 0
+    interpretationActualTokens.value = saved.llm_tokens_used || 0
+    interpretationBilledTokens.value = saved.charged_resources || saved.charged_tokens || 0
     interpretationRemainingBalance.value = null
     interpretationSavedAt.value = saved.saved_at || ''
     copiedInterpretation.value = false
@@ -723,12 +616,12 @@ async function interpretResult() {
     })
     interpretationContent.value = result.content
     interpretationModel.value = result.model
-    interpretationActualTokens.value = result.llm_tokens_used || result.actual_tokens || 0
-    interpretationBilledTokens.value = result.charged_tokens || result.billed_tokens || 0
-    interpretationRemainingBalance.value = result.remaining_balance
+    interpretationActualTokens.value = result.llm_tokens_used || 0
+    interpretationBilledTokens.value = result.charged_resources || result.charged_tokens || 0
+    interpretationRemainingBalance.value = result.remaining_resources ?? result.remaining_balance
     interpretationSavedAt.value = result.saved_at || ''
     if (authStore.user) {
-      authStore.user.tokenBalance = result.remaining_balance
+      authStore.user.tokenBalance = result.remaining_resources ?? result.remaining_balance
     }
     persistViewState()
     notificationStore.success('AI解读已生成', '结果已同步保存到项目结果，刷新后可自动恢复。')

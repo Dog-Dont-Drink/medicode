@@ -41,7 +41,7 @@ TABLE_LABELS = {
     "analyses": "分析任务",
     "analysis_results": "分析结果",
     "orders": "订单记录",
-    "token_usage": "Token 消耗",
+    "token_usage": "资源消耗",
 }
 
 
@@ -194,7 +194,7 @@ async def get_admin_dashboard(
         AdminOverviewMetric(label="总用户数", value=int(total_users), hint=f"活跃 {int(active_users)}"),
         AdminOverviewMetric(label="今日新增", value=int(recent_signups), hint="按 UTC+0 统计"),
         AdminOverviewMetric(label="付费用户", value=int(paid_users), hint=f"项目总数 {int(total_projects)}"),
-        AdminOverviewMetric(label="今日 Token 消耗", value=int(today_token_consumed), hint=f"实际 {int(today_actual_token_consumed)}"),
+        AdminOverviewMetric(label="今日资源消耗", value=int(today_token_consumed), hint=f"模型实际 {int(today_actual_token_consumed)}"),
         AdminOverviewMetric(label="累计收入", value=f"{Decimal(paid_orders_total):.2f}", hint="已支付订单"),
     ]
 

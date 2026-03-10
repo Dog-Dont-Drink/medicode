@@ -10,7 +10,7 @@
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ currentTable?.table_name || 'Table' }}</p>
               <h2 class="mt-2 text-xl font-heading font-semibold text-slate-900">{{ currentTableLabel }}</h2>
-              <p class="mt-1 text-sm text-slate-500">鍏?{{ currentTable?.total || 0 }} 琛岋紝鐐瑰嚮浠绘剰涓€琛屽嵆鍙湪鍙充晶缂栬緫銆?/p>
+              <p class="mt-1 text-sm text-slate-500">共 {{ currentTable?.total || 0 }} 行，点击任意一行即可在右侧编辑。</p>
             </div>
             <button
               type="button"
@@ -77,7 +77,7 @@
                   class="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-sm text-rose-600 transition hover:bg-rose-50"
                   @click="removeRow"
                 >
-                  鍒犻櫎鏈
+                  删除本行
                 </button>
               </div>
 
@@ -110,12 +110,12 @@
                 <svg v-if="isSaving" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
-                <span>{{ isSaving ? '淇濆瓨涓?..' : '淇濆瓨褰撳墠琛? }}</span>
+                <span>{{ isSaving ? '保存中...' : '保存当前行' }}</span>
               </button>
             </div>
 
             <div v-else class="flex min-h-[360px] items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-400">
-              璇烽€夋嫨涓€琛屽紑濮嬬紪杈?
+              请选择一行开始编辑
             </div>
           </div>
         </div>
@@ -150,17 +150,26 @@ const editBuffer = reactive<Record<string, string>>({})
 const currentTableLabel = computed(() => {
   const tableName = typeof route.params.tableName === 'string' ? route.params.tableName : ''
   const labelMap: Record<string, string> = {
-    analyses: '鍒嗘瀽浠诲姟',
-    analysis_results: '鍒嗘瀽缁撴灉',
-    dataset_dictionary: '鏁版嵁瀛楀吀',
-    datasets: '鏁版嵁闆?,
-    orders: '璁㈠崟璁板綍',
-    projects: '椤圭洰琛?,
-    token_usage: 'Token 娑堣€?,
-    users: '鐢ㄦ埛琛?,
-    verification_codes: '楠岃瘉鐮?,
+    analyses: '分析任务',
+    analysis_results: '分析结果',
+    dataset_dictionary: '数据字典',
+    datasets: '数据集',
+    orders: '订单记录',
+    projects: '项目表',
+    token_usage: '资源消耗',
+    users: '用户表',
+    verification_codes: '验证码',
   }
-  return labelMap[tableName] || tableName.replace(/_/g, ' ') || '数据表'description', 'bio', 'result_data', 'tables', 'charts', 'codebook', 'configuration', 'script_r', 'script_python'].includes(name)
+  return labelMap[tableName] || tableName.replace(/_/g, ' ') || '数据表'
+})
+
+const editableColumns = computed(() => {
+  if (!currentTable.value) return []
+  return currentTable.value.columns.filter((col) => col.name !== currentTable.value?.primary_key)
+})
+
+function isLargeField(name: string) {
+  return ['description', 'bio', 'result_data', 'tables', 'charts', 'codebook', 'configuration', 'script_r', 'script_python'].includes(name)
 }
 
 function renderCell(value: any) {
@@ -208,7 +217,7 @@ async function loadCurrentTable() {
   try {
     const routeTable = typeof route.params.tableName === 'string' ? route.params.tableName : ''
     if (!routeTable) {
-      errorMessage.value = '璇峰厛浠庡乏渚т富瀵艰埅閫夋嫨涓€涓暟鎹〃銆?
+      errorMessage.value = '请先从左侧主导航选择一个数据表。'
       currentTable.value = null
       return
     }
@@ -217,7 +226,7 @@ async function loadCurrentTable() {
     selectedRowId.value = ''
     currentTable.value = await getAdminTableRows(routeTable)
   } catch (error: any) {
-    errorMessage.value = error.response?.data?.detail || error.message || '鏁版嵁琛ㄥ垪琛ㄥ姞杞藉け璐?
+    errorMessage.value = error.response?.data?.detail || error.message || '数据表列表加载失败'
     currentTable.value = null
   } finally {
     isLoadingTables.value = false
@@ -258,9 +267,9 @@ async function saveRow() {
       currentTable.value.rows[index] = result.row
       selectRow(result.row)
     }
-    notificationStore.success('鏁版嵁琛屽凡鏇存柊', `${currentTableLabel.value} 涓殑璁板綍宸蹭繚瀛樸€俙)
+    notificationStore.success('数据行已更新', `${currentTableLabel.value} 中的记录已保存。`)
   } catch (error: any) {
-    notificationStore.error('淇濆瓨澶辫触', error.response?.data?.detail || error.message || '璇风◢鍚庨噸璇?)
+    notificationStore.error('保存失败', error.response?.data?.detail || error.message || '请稍后重试')
   } finally {
     isSaving.value = false
   }
@@ -276,9 +285,9 @@ async function removeRow() {
     currentTable.value.total -= 1
     selectedRow.value = null
     selectedRowId.value = ''
-    notificationStore.success('鏁版嵁琛屽凡鍒犻櫎', '褰撳墠璁板綍宸蹭粠鏁版嵁搴撶Щ闄ゃ€?)
+    notificationStore.success('数据行已删除', '当前记录已从数据库移除。')
   } catch (error: any) {
-    notificationStore.error('鍒犻櫎澶辫触', error.response?.data?.detail || error.message || '璇风◢鍚庨噸璇?)
+    notificationStore.error('删除失败', error.response?.data?.detail || error.message || '请稍后重试')
   }
 }
 
@@ -293,7 +302,7 @@ watch(
     currentTable.value = null
     selectedRow.value = null
     selectedRowId.value = ''
-    errorMessage.value = '璇峰厛浠庡乏渚т富瀵艰埅閫夋嫨涓€涓暟鎹〃銆?
+    errorMessage.value = '请先从左侧主导航选择一个数据表。'
     isLoadingTables.value = false
   },
 )
@@ -302,4 +311,3 @@ onMounted(async () => {
   await loadCurrentTable()
 })
 </script>
-

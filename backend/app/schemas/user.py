@@ -15,6 +15,7 @@ class UserProfile(BaseModel):
     research_field: str | None = None
     bio: str | None = None
     avatar_url: str | None = None
+    resource_balance: int = 0
     token_balance: int = 0
     subscription: str = "free"
     is_verified: bool = False
@@ -42,6 +43,7 @@ class ChangePasswordRequest(BaseModel):
 
 class BalanceResponse(BaseModel):
     balance: int
+    resource_balance: int
     plan: str
     used_this_month: int
     actual_used_this_month: int = 0

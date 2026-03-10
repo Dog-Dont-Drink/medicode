@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="space-y-6">
-    <div class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-cyan-50/60 px-5 py-4">
+    <div class="panel-card bg-gradient-to-r from-slate-50 via-white to-cyan-50/60 px-5 py-4">
       <p class="text-sm font-semibold text-slate-900">混合设计重复测量方差分析</p>
       <p class="mt-1 text-sm leading-6 text-slate-600">
         适用于长表数据。你可以指定 ID 变量、可选的组间分组变量、时间变量，以及一个或多个连续变量；系统会自动给出时间主效应、组间主效应与交互效应，并在需要时采用球形性校正。
@@ -9,7 +9,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
       <div class="xl:col-span-4">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div>
             <h2 class="text-sm font-semibold text-gray-900">检验配置</h2>
             <p class="mt-1 text-xs text-gray-400">请按长表结构依次指定 ID、组间分组、时间变量和连续变量。</p>
@@ -18,7 +18,7 @@
           <div class="mt-5 space-y-4">
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">数据集</label>
-              <select v-model="selectedDatasetId" :disabled="loadingDatasets" @change="handleDatasetChange" class="input-field py-2.5 text-sm">
+              <select v-model="selectedDatasetId" :disabled="loadingDatasets" @change="handleDatasetChange" class="tool-input">
                 <option value="">请选择数据集</option>
                 <option v-for="dataset in datasetOptions" :key="dataset.id" :value="dataset.id">
                   {{ dataset.name }} · {{ dataset.projectName }}
@@ -28,7 +28,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">ID 变量</label>
-              <select v-model="subjectVariable" :disabled="!subjectVariableOptions.length" @change="handleStructureChange" class="input-field py-2.5 text-sm">
+              <select v-model="subjectVariable" :disabled="!subjectVariableOptions.length" @change="handleStructureChange" class="tool-input">
                 <option value="">请选择 ID 变量</option>
                 <option v-for="column in subjectVariableOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · {{ column.unique_count }} 个唯一值
@@ -39,7 +39,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">组间分组变量（可选）</label>
-              <select v-model="betweenVariable" :disabled="!betweenVariableOptions.length" @change="handleStructureChange" class="input-field py-2.5 text-sm">
+              <select v-model="betweenVariable" :disabled="!betweenVariableOptions.length" @change="handleStructureChange" class="tool-input">
                 <option value="">不设置组间分组变量</option>
                 <option v-for="column in betweenVariableOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · {{ column.unique_count }} 组
@@ -50,7 +50,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">时间变量</label>
-              <select v-model="timeVariable" :disabled="!timeVariableOptions.length" @change="handleStructureChange" class="input-field py-2.5 text-sm">
+              <select v-model="timeVariable" :disabled="!timeVariableOptions.length" @change="handleStructureChange" class="tool-input">
                 <option value="">请选择时间变量</option>
                 <option v-for="column in timeVariableOptions" :key="column.name" :value="column.name">
                   {{ column.name }} · {{ column.unique_count }} 个水平
@@ -59,7 +59,7 @@
               <p class="mt-1 text-[11px] text-gray-400">例如 baseline / month1 / month3，或 visit1 / visit2 / visit3。</p>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
+            <div class="panel-subtle p-3">
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="text-xs font-semibold text-gray-700">连续变量</p>
@@ -69,7 +69,7 @@
                   {{ selectedContinuousVariables.length === continuousVariableOptions.length && continuousVariableOptions.length ? '清空' : '全选' }}
                 </button>
               </div>
-              <div class="mt-3 rounded-lg border border-white bg-white p-2.5">
+              <div class="panel-card-tight mt-3 border-white p-2.5">
                 <p class="text-[11px] text-gray-500">{{ describeSelection(selectedContinuousVariables, continuousVariableOptions.length) }}</p>
                 <div class="mt-2 grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
                   <label
@@ -91,7 +91,7 @@
 
             <div>
               <label class="mb-1.5 block text-xs font-medium text-gray-500">显著性水平</label>
-              <select v-model.number="alpha" class="input-field py-2.5 text-sm">
+              <select v-model.number="alpha" class="tool-input">
                 <option :value="0.05">0.05</option>
                 <option :value="0.01">0.01</option>
               </select>
@@ -100,7 +100,7 @@
             <button
               @click="runAnalysis"
               :disabled="isRunning || !selectedDatasetId || !subjectVariable || !timeVariable"
-              class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+              class="tool-btn-primary w-full px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg v-if="isRunning" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
@@ -116,7 +116,7 @@
       </div>
 
       <div class="xl:col-span-8">
-        <div class="rounded-2xl border border-gray-100 bg-white p-5">
+        <div class="panel-card p-5">
           <div class="flex flex-col gap-3 border-b border-slate-200 pb-4">
             <div class="flex items-center justify-between gap-4">
               <div>
@@ -130,7 +130,7 @@
                 <button
                   v-if="analysisResult"
                   type="button"
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-primary/30 hover:text-primary"
+                  class="tool-btn h-9 w-9 p-0 text-slate-500 hover:text-primary"
                   @click="copyResultTable"
                   :aria-label="copiedResult ? '已复制统计结果' : '复制统计结果'"
                   :title="copiedResult ? '已复制' : '复制到剪切板'"
@@ -209,7 +209,7 @@
             <div
               v-for="item in analysisResult.variables"
               :key="`${item.variable}-note`"
-              class="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5"
+              class="panel-subtle px-3 py-2.5"
             >
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span class="font-semibold text-slate-800">{{ item.variable }}</span>

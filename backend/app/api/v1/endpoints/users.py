@@ -16,6 +16,7 @@ from app.schemas.user import (
     UpdateProfileRequest,
     UserProfile,
 )
+from app.services.resource_service import resource_fields
 from app.services import user_service
 from app.services.storage_service import storage_service
 
@@ -39,7 +40,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         research_field=current_user.research_field,
         bio=current_user.bio,
         avatar_url=current_user.avatar_url,
-        token_balance=current_user.token_balance,
+        **resource_fields(int(current_user.token_balance or 0)),
         subscription=current_user.subscription,
         is_verified=current_user.is_verified,
         is_active=current_user.is_active,
@@ -67,7 +68,7 @@ async def update_profile(
         research_field=updated.research_field,
         bio=updated.bio,
         avatar_url=updated.avatar_url,
-        token_balance=updated.token_balance,
+        **resource_fields(int(updated.token_balance or 0)),
         subscription=updated.subscription,
         is_verified=updated.is_verified,
         is_active=updated.is_active,
@@ -127,7 +128,7 @@ async def upload_avatar(
         research_field=updated.research_field,
         bio=updated.bio,
         avatar_url=updated.avatar_url,
-        token_balance=updated.token_balance,
+        **resource_fields(int(updated.token_balance or 0)),
         subscription=updated.subscription,
         is_verified=updated.is_verified,
         is_active=updated.is_active,
@@ -157,5 +158,5 @@ async def get_balance(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取 Token 余额"""
+    """获取资源余额"""
     return await user_service.get_balance(db, str(current_user.id))

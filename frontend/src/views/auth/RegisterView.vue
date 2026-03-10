@@ -268,7 +268,7 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   height: 38px;
   padding: 0 12px;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 13px;
   color: #111827;
   background: #fff;

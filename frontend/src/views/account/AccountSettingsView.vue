@@ -373,7 +373,7 @@ onUnmounted(() => { if (pwdTimer) clearInterval(pwdTimer) })
   width: 100%;
   padding: 10px 14px;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 14px;
   color: #111827;
   transition: all 0.15s;

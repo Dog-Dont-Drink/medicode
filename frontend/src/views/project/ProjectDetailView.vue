@@ -72,7 +72,7 @@
             <div class="flex justify-between text-sm"><span class="text-gray-500">数据集</span><span class="font-medium text-gray-900">3</span></div>
             <div class="flex justify-between text-sm"><span class="text-gray-500">分析任务</span><span class="font-medium text-gray-900">5</span></div>
             <div class="flex justify-between text-sm"><span class="text-gray-500">已生成报告</span><span class="font-medium text-gray-900">2</span></div>
-            <div class="flex justify-between text-sm"><span class="text-gray-500">Token 消耗</span><span class="font-medium text-gray-900">320</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-500">资源消耗</span><span class="font-medium text-gray-900">320</span></div>
           </div>
         </div>
 

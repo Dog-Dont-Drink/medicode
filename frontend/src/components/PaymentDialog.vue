@@ -20,12 +20,12 @@
               <span class="order-value font-semibold">{{ pkg?.name }}</span>
             </div>
             <div class="order-row">
-              <span class="order-label">Token 数量</span>
-              <span class="order-value text-primary font-semibold">{{ pkg?.tokens }}</span>
+              <span class="order-label">资源数量</span>
+              <span class="order-value text-primary font-semibold">{{ pkg?.resources }}</span>
             </div>
             <div class="order-row">
               <span class="order-label">单价</span>
-              <span class="order-value">¥{{ TEST_ORDER_AMOUNT }}/Token</span>
+              <span class="order-value">¥{{ TEST_ORDER_AMOUNT }}/资源</span>
             </div>
             <div class="order-divider"></div>
             <div class="order-row">
@@ -112,12 +112,12 @@
             </div>
           </div>
           <h2 class="dialog-title text-green-600">支付成功！</h2>
-          <p class="dialog-subtitle">Token 已充值到您的账户</p>
+          <p class="dialog-subtitle">资源已充值到您的账户</p>
 
           <div class="success-card">
             <div class="success-row">
-              <span>充值 Token</span>
-              <span class="text-2xl font-bold text-primary">+{{ pkg?.tokens }}</span>
+              <span>充值资源</span>
+              <span class="text-2xl font-bold text-primary">+{{ pkg?.resources }}</span>
             </div>
             <div class="success-row">
               <span>支付金额</span>
@@ -161,6 +161,7 @@ interface PackageInfo {
   id: string
   name: string
   price: number
+  resources: number
   tokens: number
   unitPrice: string
 }
@@ -172,7 +173,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
-  (e: 'success', data: { orderId: string; tokens: number }): void
+  (e: 'success', data: { orderId: string; resources: number }): void
 }>()
 
 type Step = 'confirm' | 'qrcode' | 'success' | 'failed'
@@ -276,7 +277,7 @@ function stopPolling() {
 }
 
 function handleDone() {
-  emit('success', { orderId: orderId.value, tokens: props.pkg?.tokens || 0 })
+  emit('success', { orderId: orderId.value, resources: props.pkg?.resources || props.pkg?.tokens || 0 })
   handleClose()
 }
 
@@ -301,7 +302,7 @@ onBeforeUnmount(() => {
 .payment-dialog {
   position: relative;
   background: white;
-  border-radius: 1.25rem;
+  border-radius: 0.875rem;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
   width: 100%;
   max-width: 420px;
@@ -318,7 +319,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   color: #9ca3af;
   transition: all 0.15s;
   cursor: pointer;
@@ -340,7 +341,7 @@ onBeforeUnmount(() => {
 .step-icon {
   width: 4rem;
   height: 4rem;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -366,7 +367,7 @@ onBeforeUnmount(() => {
   width: 100%;
   margin-top: 1.25rem;
   background: #f9fafb;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   padding: 1rem 1.25rem;
 }
 
@@ -412,7 +413,7 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border: 2px solid #059669;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   background: #f0fdf4;
 }
 
@@ -456,7 +457,7 @@ onBeforeUnmount(() => {
   width: 240px;
   height: 240px;
   border: 2px solid #e5e7eb;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -465,7 +466,7 @@ onBeforeUnmount(() => {
 }
 
 .qr-canvas {
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
 }
 
 .qr-loading,
@@ -496,7 +497,7 @@ onBeforeUnmount(() => {
   color: #059669;
   background: #f0fdf4;
   border: 1px solid #059669;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -519,7 +520,7 @@ onBeforeUnmount(() => {
   width: 100%;
   margin-top: 1.25rem;
   background: #f9fafb;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   padding: 0.75rem 1rem;
 }
 
@@ -570,7 +571,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: -0.75rem;
   border: 2px solid #bbf7d0;
-  border-radius: 1.25rem;
+  border-radius: 0.875rem;
   animation: ring-expand 0.6s ease-out;
 }
 
@@ -595,7 +596,7 @@ onBeforeUnmount(() => {
   margin-top: 1.5rem;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   padding: 1rem 1.25rem;
 }
 
@@ -616,7 +617,7 @@ onBeforeUnmount(() => {
   color: white;
   font-weight: 600;
   font-size: 1rem;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   border: none;
   cursor: pointer;
   transition: all 0.15s;
@@ -632,7 +633,7 @@ onBeforeUnmount(() => {
   background: #059669;
   color: white;
   font-weight: 600;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   border: none;
   cursor: pointer;
   transition: all 0.15s;
@@ -647,7 +648,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: #6b7280;
   font-weight: 500;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   border: 1px solid #e5e7eb;
   cursor: pointer;
   transition: all 0.15s;

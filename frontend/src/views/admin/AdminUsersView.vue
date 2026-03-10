@@ -102,7 +102,7 @@
               </select>
             </div>
             <div>
-              <label class="mb-2 block text-xs font-medium text-slate-500">Token 余额</label>
+              <label class="mb-2 block text-xs font-medium text-slate-500">资源余额</label>
               <input v-model.number="editForm.token_balance" class="input-field" type="number" min="0" />
             </div>
             <div>

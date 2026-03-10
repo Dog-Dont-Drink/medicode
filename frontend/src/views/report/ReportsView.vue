@@ -4,7 +4,7 @@
       <div>
         <h1 class="text-2xl font-heading font-bold text-gray-900">报告中心</h1>
         <p class="mt-1 text-sm text-gray-500">
-          这里集中展示已保存的 AI 结果解读。当前保存于项目结果库，刷新页面不会丢失。
+          这里集中展示已保存的分析。当前保存于项目结果库，随时可查阅。
         </p>
       </div>
     </div>
@@ -48,9 +48,9 @@
         :key="report.analysis_id"
         class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm shadow-gray-100/80"
       >
-        <div class="border-b border-gray-100 bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-5 py-4">
-          <div class="flex flex-col gap-3">
-            <div class="min-w-0">
+        <div class="bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-5 py-4">
+          <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold tracking-[0.16em] text-emerald-700">
                   {{ reportTypeLabel(report) }}
@@ -59,26 +59,25 @@
                   {{ report.language === 'en' ? 'English' : '中文' }}
                 </span>
               </div>
-              <h2 class="mt-2 text-lg font-heading font-semibold text-gray-900">{{ reportDisplayTitle(report) }}</h2>
-              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500">
+
+              <div class="mt-2 flex min-w-0 flex-col gap-1.5 2xl:flex-row 2xl:items-center 2xl:gap-3">
+                <h2 class="min-w-0 text-base font-heading font-semibold text-gray-900">
+                  {{ reportDisplayTitle(report) }}
+                </h2>
+                <p class="min-w-0 flex-1 truncate text-sm text-slate-600">
+                  {{ previewText(report.content) }}
+                </p>
+              </div>
+
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                 <span>{{ report.project_name }}</span>
                 <span v-if="report.dataset_name">{{ report.dataset_name }}</span>
                 <span v-if="report.group_variable">分组变量 {{ report.group_variable }}</span>
                 <span>{{ formatDate(report.created_at) }}</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div class="px-5 py-4">
-          <div class="rounded-2xl bg-slate-50 px-4 py-3.5">
-            <p class="whitespace-pre-line text-[14px] leading-6 text-slate-700">
-              {{ expandedReports[report.analysis_id] ? report.content || '该报告暂未写入正文。' : previewText(report.content) }}
-            </p>
-          </div>
-
-          <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
               <button
                 type="button"
                 class="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-primary/40 hover:text-primary"
@@ -89,8 +88,29 @@
                 </svg>
                 {{ expandedReports[report.analysis_id] ? '收起全文' : '查看全文' }}
               </button>
-     
+
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-2xl border border-rose-200 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="deletingReportId === report.analysis_id"
+                @click="handleDelete(report)"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18"/>
+                  <path d="M8 6V4h8v2"/>
+                  <path d="M19 6l-1 14H6L5 6"/>
+                  <path d="M10 11v6"/>
+                  <path d="M14 11v6"/>
+                </svg>
+                {{ deletingReportId === report.analysis_id ? '删除中...' : '删除' }}
+              </button>
             </div>
+          </div>
+
+          <div v-if="expandedReports[report.analysis_id]" class="mt-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3.5">
+            <p class="whitespace-pre-line text-[14px] leading-6 text-slate-700">
+              {{ report.content || '该报告暂未写入正文。' }}
+            </p>
           </div>
         </div>
       </article>
@@ -101,12 +121,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { getReports, type ReportListItem } from '@/services/api'
+import { deleteReport, getReports, type ReportListItem } from '@/services/api'
+import { useNotificationStore } from '@/stores/notification'
 
 const reports = ref<ReportListItem[]>([])
 const expandedReports = ref<Record<string, boolean>>({})
+const deletingReportId = ref('')
 const isLoading = ref(true)
 const errorMessage = ref('')
+const notificationStore = useNotificationStore()
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-CN', {
@@ -120,8 +143,9 @@ function formatDate(value: string) {
 
 function previewText(content?: string | null) {
   if (!content) return '该报告暂未写入正文。'
-  if (content.length <= 220) return content
-  return `${content.slice(0, 220).trim()}...`
+  const normalized = content.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= 120) return normalized
+  return `${normalized.slice(0, 120).trim()}...`
 }
 
 function reportTypeLabel(report: ReportListItem) {
@@ -144,6 +168,27 @@ function reportDisplayTitle(report: ReportListItem) {
 
 function toggleExpanded(analysisId: string) {
   expandedReports.value[analysisId] = !expandedReports.value[analysisId]
+}
+
+async function handleDelete(report: ReportListItem) {
+  if (deletingReportId.value) return
+
+  deletingReportId.value = report.analysis_id
+
+  try {
+    await deleteReport(report.analysis_id)
+    reports.value = reports.value.filter(item => item.analysis_id !== report.analysis_id)
+
+    const nextExpandedReports = { ...expandedReports.value }
+    delete nextExpandedReports[report.analysis_id]
+    expandedReports.value = nextExpandedReports
+
+    notificationStore.success('报告已删除', '该卡片已从报告中心移除。')
+  } catch (error: any) {
+    notificationStore.error('删除失败', error.response?.data?.detail || error.message || '请稍后重试')
+  } finally {
+    deletingReportId.value = ''
+  }
 }
 
 onMounted(async () => {

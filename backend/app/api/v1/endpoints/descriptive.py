@@ -69,6 +69,7 @@ from app.services.repeated_measures_service import run_repeated_measures_anova
 from app.services.regression_interpretation_service import (
     FEATURE_NAME as REGRESSION_FEATURE_NAME,
     build_regression_signature,
+    compact_regression_payload,
     interpret_regression,
 )
 from app.services.regression_export_service import export_regression_excel
@@ -82,13 +83,17 @@ from app.services.regression_service import (
 from app.services.tableone_interpretation_service import FEATURE_NAME, build_tableone_signature, interpret_tableone
 from app.services.tableone_service import generate_tableone
 from app.services.ttest_service import run_ttest
-from app.services.user_service import calculate_ai_interpretation_charge, consume_user_tokens
 from app.services.dataset_parser import load_tabular_dataframe
 from app.services.dataset_kind_service import get_dataset_kind_overrides
+from app.services.resource_service import (
+    PaidFeature,
+    consume_user_resources,
+    ensure_paid_feature_access,
+    ensure_sufficient_resources,
+)
 
 
 router = APIRouter(prefix="/descriptive", tags=["描述统计"])
-PAID_SUBSCRIPTIONS = {"basic", "pro", "enterprise"}
 
 
 async def _get_dataset_for_user(dataset_id: uuid.UUID, current_user: User, db: AsyncSession) -> Dataset:
@@ -159,11 +164,26 @@ async def _get_saved_regression_interpretation(
     return None
 
 
-def _ensure_paid_ai_interpretation_access(current_user: User) -> None:
-    if current_user.subscription not in PAID_SUBSCRIPTIONS:
-        raise Forbidden("AI结果解读为付费功能，请升级后使用")
-    if current_user.token_balance < 500:
-        raise BadRequest("Token 余额不足，AI结果解读至少需要 500 Token")
+def _ensure_paid_feature_ready(current_user: User, feature: PaidFeature) -> int:
+    ensure_paid_feature_access(current_user, feature)
+    return ensure_sufficient_resources(current_user, feature)
+
+
+def _resource_charge_fields(amount: int) -> dict[str, int]:
+    billed = max(int(amount), 0)
+    return {
+        "charged_resources": billed,
+        "charged_tokens": billed,
+    }
+
+
+def _extract_saved_charge(result_data: dict) -> int:
+    return int(
+        result_data.get("charged_resources")
+        or result_data.get("charged_tokens")
+        or result_data.get("billed_tokens")
+        or 0
+    )
 
 
 async def _save_ai_interpretation_analysis(
@@ -176,7 +196,7 @@ async def _save_ai_interpretation_analysis(
     configuration: dict,
     result_data: dict,
     tables: dict | None,
-    charged_tokens: int,
+    billed_resources: int,
     executed_at: datetime,
 ) -> AnalysisResult:
     analysis = Analysis(
@@ -186,7 +206,7 @@ async def _save_ai_interpretation_analysis(
         analysis_type=analysis_type,
         configuration=configuration,
         status="completed",
-        tokens_consumed=charged_tokens,
+        tokens_consumed=billed_resources,
         created_by=current_user.id,
         executed_at=executed_at,
     )
@@ -600,6 +620,12 @@ async def run_linear_regression_endpoint(
         model_p_value=result.model_p_value,
         formula=result.formula,
         assumptions=result.assumptions,
+        residual_normality_method=result.residual_normality_method,
+        residual_normality_p_value=result.residual_normality_p_value,
+        residual_normality_passed=result.residual_normality_passed,
+        homoscedasticity_test_method=result.homoscedasticity_test_method,
+        homoscedasticity_p_value=result.homoscedasticity_p_value,
+        homoscedasticity_passed=result.homoscedasticity_passed,
         coefficients=[
             LinearRegressionCoefficient(
                 term=item.term,
@@ -611,6 +637,17 @@ async def run_linear_regression_endpoint(
                 conf_high=item.conf_high,
             )
             for item in result.coefficients
+        ],
+        plots=[
+            LassoPlotPayload(
+                name=plot.name,
+                filename=plot.filename,
+                media_type=plot.media_type,
+                content_base64=plot.content_base64,
+                vector_pdf_filename=plot.vector_pdf_filename,
+                vector_pdf_base64=plot.vector_pdf_base64,
+            )
+            for plot in result.plots
         ],
         note=result.note,
     )
@@ -660,9 +697,23 @@ async def run_logistic_regression_endpoint(
         model_p_value=result.model_p_value,
         formula=result.formula,
         assumptions=result.assumptions,
+        univariate_coefficients=[
+            LogisticRegressionCoefficient(
+                term=item.term,
+                coefficient=item.coefficient,
+                odds_ratio=item.odds_ratio,
+                std_error=item.std_error,
+                z_value=item.z_value,
+                p_value=item.p_value,
+                conf_low=item.conf_low,
+                conf_high=item.conf_high,
+            )
+            for item in result.univariate_coefficients
+        ],
         coefficients=[
             LogisticRegressionCoefficient(
                 term=item.term,
+                coefficient=item.coefficient,
                 odds_ratio=item.odds_ratio,
                 std_error=item.std_error,
                 z_value=item.z_value,
@@ -671,6 +722,17 @@ async def run_logistic_regression_endpoint(
                 conf_high=item.conf_high,
             )
             for item in result.coefficients
+        ],
+        plots=[
+            LassoPlotPayload(
+                name=plot.name,
+                filename=plot.filename,
+                media_type=plot.media_type,
+                content_base64=plot.content_base64,
+                vector_pdf_filename=plot.vector_pdf_filename,
+                vector_pdf_base64=plot.vector_pdf_base64,
+            )
+            for plot in result.plots
         ],
         note=result.note,
     )
@@ -734,6 +796,8 @@ async def run_lasso_regression_endpoint(
                 filename=plot.filename,
                 media_type=plot.media_type,
                 content_base64=plot.content_base64,
+                vector_pdf_filename=plot.vector_pdf_filename,
+                vector_pdf_base64=plot.vector_pdf_base64,
             )
             for plot in result.plots
         ],
@@ -793,9 +857,23 @@ async def run_cox_regression_endpoint(
         global_ph_p_value=result.global_ph_p_value,
         formula=result.formula,
         assumptions=result.assumptions,
+        univariate_coefficients=[
+            CoxRegressionCoefficient(
+                term=item.term,
+                coefficient=item.coefficient,
+                hazard_ratio=item.hazard_ratio,
+                std_error=item.std_error,
+                z_value=item.z_value,
+                p_value=item.p_value,
+                conf_low=item.conf_low,
+                conf_high=item.conf_high,
+            )
+            for item in result.univariate_coefficients
+        ],
         coefficients=[
             CoxRegressionCoefficient(
                 term=item.term,
+                coefficient=item.coefficient,
                 hazard_ratio=item.hazard_ratio,
                 std_error=item.std_error,
                 z_value=item.z_value,
@@ -813,6 +891,17 @@ async def run_cox_regression_endpoint(
                 p_value=item.p_value,
             )
             for item in result.proportional_hazards_tests
+        ],
+        plots=[
+            LassoPlotPayload(
+                name=plot.name,
+                filename=plot.filename,
+                media_type=plot.media_type,
+                content_base64=plot.content_base64,
+                vector_pdf_filename=plot.vector_pdf_filename,
+                vector_pdf_base64=plot.vector_pdf_base64,
+            )
+            for plot in result.plots
         ],
         note=result.note,
     )
@@ -877,8 +966,7 @@ async def export_lasso_plot_pdf_result(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if current_user.subscription not in PAID_SUBSCRIPTIONS:
-        raise Forbidden("PDF 下载为付费会员功能，请升级后使用")
+    charged_resources = _ensure_paid_feature_ready(current_user, "pdf_export")
 
     try:
         dataset_uuid = uuid.UUID(payload.dataset_id)
@@ -887,11 +975,120 @@ async def export_lasso_plot_pdf_result(
 
     await _get_dataset_for_user(dataset_uuid, current_user, db)
     pdf_content, file_name = export_lasso_plot_pdf(payload.plot)
+    remaining_resources = await consume_user_resources(
+        db=db,
+        user=current_user,
+        operation="lasso_plot_pdf_export",
+        billed_resources=charged_resources,
+    )
     encoded_file_name = quote(file_name)
     return Response(
         content=pdf_content,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}"},
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}",
+            "X-Resource-Balance": str(remaining_resources),
+            "X-Resource-Charge": str(charged_resources),
+        },
+    )
+
+
+@router.post("/linear-regression/plot/pdf")
+async def export_linear_plot_pdf_result(
+    payload: LassoPlotPdfExportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    charged_resources = _ensure_paid_feature_ready(current_user, "pdf_export")
+
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    await _get_dataset_for_user(dataset_uuid, current_user, db)
+    pdf_content, file_name = export_lasso_plot_pdf(payload.plot)
+    remaining_resources = await consume_user_resources(
+        db=db,
+        user=current_user,
+        operation="linear_regression_plot_pdf_export",
+        billed_resources=charged_resources,
+    )
+    encoded_file_name = quote(file_name)
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}",
+            "X-Resource-Balance": str(remaining_resources),
+            "X-Resource-Charge": str(charged_resources),
+        },
+    )
+
+
+@router.post("/logistic-regression/plot/pdf")
+async def export_logistic_plot_pdf_result(
+    payload: LassoPlotPdfExportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    charged_resources = _ensure_paid_feature_ready(current_user, "pdf_export")
+
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    await _get_dataset_for_user(dataset_uuid, current_user, db)
+    pdf_content, file_name = export_lasso_plot_pdf(payload.plot)
+    remaining_resources = await consume_user_resources(
+        db=db,
+        user=current_user,
+        operation="logistic_regression_plot_pdf_export",
+        billed_resources=charged_resources,
+    )
+    encoded_file_name = quote(file_name)
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}",
+            "X-Resource-Balance": str(remaining_resources),
+            "X-Resource-Charge": str(charged_resources),
+        },
+    )
+
+
+@router.post("/cox-regression/plot/pdf")
+async def export_cox_plot_pdf_result(
+    payload: LassoPlotPdfExportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    charged_resources = _ensure_paid_feature_ready(current_user, "pdf_export")
+
+    try:
+        dataset_uuid = uuid.UUID(payload.dataset_id)
+    except ValueError as exc:
+        raise BadRequest("数据集标识无效") from exc
+
+    await _get_dataset_for_user(dataset_uuid, current_user, db)
+    pdf_content, file_name = export_lasso_plot_pdf(payload.plot)
+    remaining_resources = await consume_user_resources(
+        db=db,
+        user=current_user,
+        operation="cox_plot_pdf_export",
+        billed_resources=charged_resources,
+    )
+    encoded_file_name = quote(file_name)
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_file_name}",
+            "X-Resource-Balance": str(remaining_resources),
+            "X-Resource-Charge": str(charged_resources),
+        },
     )
 
 
@@ -902,7 +1099,7 @@ async def interpret_tableone_result(
     db: AsyncSession = Depends(get_db),
 ):
     """Interpret Table 1 using an LLM for paid users."""
-    _ensure_paid_ai_interpretation_access(current_user)
+    charged_resources = _ensure_paid_feature_ready(current_user, "ai_interpretation")
 
     try:
         dataset_uuid = uuid.UUID(payload.dataset_id)
@@ -911,12 +1108,11 @@ async def interpret_tableone_result(
 
     dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
     interpretation = await interpret_tableone(payload.table, payload.language)
-    charged_tokens = calculate_ai_interpretation_charge(interpretation.llm_tokens_used)
-    remaining_balance = await consume_user_tokens(
+    remaining_resources = await consume_user_resources(
         db=db,
         user=current_user,
         operation="table1_interpretation",
-        billed_tokens=charged_tokens,
+        billed_resources=charged_resources,
         actual_tokens=interpretation.llm_tokens_used,
     )
     now = datetime.now(timezone.utc)
@@ -925,7 +1121,7 @@ async def interpret_tableone_result(
         db=db,
         dataset=dataset,
         current_user=current_user,
-        analysis_name=f"Table 1 AI???? ? {payload.table.group_variable}",
+        analysis_name=f"Table 1 AI解读 - {payload.table.group_variable}",
         analysis_type="table1_interpretation",
         configuration={
             "group_variable": payload.table.group_variable,
@@ -942,10 +1138,10 @@ async def interpret_tableone_result(
             "model": interpretation.model,
             "content": interpretation.content,
             "llm_tokens_used": interpretation.llm_tokens_used,
-            "charged_tokens": charged_tokens,
+            **_resource_charge_fields(charged_resources),
         },
         tables={"table1": payload.table.model_dump()},
-        charged_tokens=charged_tokens,
+        billed_resources=charged_resources,
         executed_at=now,
     )
 
@@ -957,8 +1153,9 @@ async def interpret_tableone_result(
         analysis_id=str(analysis_result.analysis_id),
         saved_at=analysis_result.created_at.isoformat() if analysis_result.created_at else now.isoformat(),
         llm_tokens_used=interpretation.llm_tokens_used,
-        charged_tokens=charged_tokens,
-        remaining_balance=remaining_balance,
+        **_resource_charge_fields(charged_resources),
+        remaining_resources=remaining_resources,
+        remaining_balance=remaining_resources,
     )
 
 
@@ -989,7 +1186,7 @@ async def get_saved_tableone_interpretation(
         analysis_id=str(saved.analysis_id),
         saved_at=saved.created_at.isoformat() if saved.created_at else None,
         llm_tokens_used=int(result_data.get("llm_tokens_used") or result_data.get("actual_tokens") or 0),
-        charged_tokens=int(result_data.get("charged_tokens") or result_data.get("billed_tokens") or 0),
+        **_resource_charge_fields(_extract_saved_charge(result_data)),
     )
 
 
@@ -999,7 +1196,7 @@ async def interpret_regression_result(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    _ensure_paid_ai_interpretation_access(current_user)
+    charged_resources = _ensure_paid_feature_ready(current_user, "ai_interpretation")
 
     try:
         dataset_uuid = uuid.UUID(payload.dataset_id)
@@ -1007,23 +1204,23 @@ async def interpret_regression_result(
         raise BadRequest("数据集标识无效") from exc
 
     dataset = await _get_dataset_for_user(dataset_uuid, current_user, db)
+    compact_payload = compact_regression_payload(payload.analysis_kind, payload.payload)
     interpretation = await interpret_regression(payload.analysis_kind, payload.payload, payload.language)
-    charged_tokens = calculate_ai_interpretation_charge(interpretation.llm_tokens_used)
-    remaining_balance = await consume_user_tokens(
+    remaining_resources = await consume_user_resources(
         db=db,
         user=current_user,
         operation=f"{payload.analysis_kind}_regression_interpretation",
-        billed_tokens=charged_tokens,
+        billed_resources=charged_resources,
         actual_tokens=interpretation.llm_tokens_used,
     )
     now = datetime.now(timezone.utc)
-    signature = build_regression_signature(payload.analysis_kind, payload.payload, payload.language)
+    signature = build_regression_signature(payload.analysis_kind, compact_payload, payload.language)
     analysis_type = f"{payload.analysis_kind}_regression_interpretation"
     analysis_result = await _save_ai_interpretation_analysis(
         db=db,
         dataset=dataset,
         current_user=current_user,
-        analysis_name=f"{payload.analysis_kind} regression interpretation",
+        analysis_name=f"{payload.analysis_kind.upper()} AI解读",
         analysis_type=analysis_type,
         configuration={
             "analysis_kind": payload.analysis_kind,
@@ -1037,10 +1234,10 @@ async def interpret_regression_result(
             "model": interpretation.model,
             "content": interpretation.content,
             "llm_tokens_used": interpretation.llm_tokens_used,
-            "charged_tokens": charged_tokens,
+            **_resource_charge_fields(charged_resources),
         },
-        tables={"regression": payload.payload},
-        charged_tokens=charged_tokens,
+        tables={"regression": compact_payload},
+        billed_resources=charged_resources,
         executed_at=now,
     )
 
@@ -1053,8 +1250,9 @@ async def interpret_regression_result(
         analysis_id=str(analysis_result.analysis_id),
         saved_at=analysis_result.created_at.isoformat() if analysis_result.created_at else now.isoformat(),
         llm_tokens_used=interpretation.llm_tokens_used,
-        charged_tokens=charged_tokens,
-        remaining_balance=remaining_balance,
+        **_resource_charge_fields(charged_resources),
+        remaining_resources=remaining_resources,
+        remaining_balance=remaining_resources,
     )
 
 
@@ -1085,5 +1283,5 @@ async def get_saved_regression_interpretation(
         analysis_id=str(saved.analysis_id),
         saved_at=saved.created_at.isoformat() if saved.created_at else None,
         llm_tokens_used=int(result_data.get("llm_tokens_used") or result_data.get("actual_tokens") or 0),
-        charged_tokens=int(result_data.get("charged_tokens") or result_data.get("billed_tokens") or 0),
+        **_resource_charge_fields(_extract_saved_charge(result_data)),
     )

@@ -4,10 +4,10 @@
       <section class="hidden rounded-[32px] border border-emerald-100 bg-[#122420] p-10 text-white shadow-[0_30px_100px_rgba(16,34,28,0.18)] lg:block">
         <p class="text-xs uppercase tracking-[0.28em] text-emerald-200/80">MediCode Admin</p>
         <h1 class="mt-5 max-w-lg text-4xl font-heading font-semibold leading-tight">
-          平台运营、用户状态和 Token 消耗都在这一张后台面板里。
+          平台运营、用户状态和资源消耗都在这一张后台面板里。
         </h1>
         <p class="mt-5 max-w-xl text-base leading-8 text-slate-300">
-          管理员后台支持集中查看每日新增用户、每日 Token 消耗、累计收入，以及直接维护用户余额、套餐、角色和启停状态。
+          管理员后台支持集中查看每日新增用户、每日资源消耗、累计收入，以及直接维护用户余额、套餐、角色和启停状态。
         </p>
         <div class="mt-10 grid gap-4 sm:grid-cols-2">
           <div class="rounded-2xl border border-white/10 bg-white/5 p-5">

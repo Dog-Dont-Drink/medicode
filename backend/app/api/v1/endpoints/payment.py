@@ -24,13 +24,14 @@ router = APIRouter(prefix="/payment", tags=["支付"])
 
 @router.get("/packages", response_model=List[PaymentPackage])
 async def get_payment_packages():
-    """List token packages configured on the backend."""
+    """List resource packages configured on the backend."""
     return [
         PaymentPackage(
             id=package.id,
             name=package.name,
             price=float(package.amount),
-            tokens=package.tokens,
+            resources=package.resources,
+            tokens=package.resources,
             unitPrice=package.unit_price,
             badge=package.badge,
             features=list(package.features),
@@ -67,6 +68,7 @@ async def query_payment_status(
         orderId=str(order.id),
         status=order.status,
         paidAt=(order.paid_at.isoformat() if order.paid_at else None),
+        resourcesAdded=(order.tokens if order.status == "paid" else None),
         tokensAdded=(order.tokens if order.status == "paid" else None),
     )
 
@@ -83,6 +85,7 @@ async def get_payment_orders(
             orderId=str(order.id),
             packageName=order.package_name,
             amount=float(order.amount),
+            resources=order.tokens,
             tokens=order.tokens,
             status=order.status,
             createdAt=order.created_at.isoformat(),

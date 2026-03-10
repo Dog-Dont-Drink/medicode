@@ -63,6 +63,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'analysis/lasso-regression', name: 'LassoRegression', component: () => import('@/views/analysis/LassoRegressionView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/logistic-regression', name: 'LogisticRegression', component: () => import('@/views/analysis/LogisticRegressionView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/cox-regression', name: 'CoxRegression', component: () => import('@/views/analysis/CoxRegressionView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/clinical-model-builder', name: 'ClinicalModelBuilder', component: () => import('@/views/analysis/ClinicalModelWorkbenchView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/repeated-measures-anova', name: 'RepeatedMeasuresAnova', component: () => import('@/views/analysis/RepeatedMeasuresAnovaView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/chi-square', name: 'ChiSquare', component: () => import('@/views/analysis/ChiSquareView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/new', name: 'AnalysisCreate', component: () => import('@/views/analysis/AnalysisCreateView.vue'), meta: { requiresAuth: true } },
