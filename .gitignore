@@ -22,7 +22,7 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
-*.db
+medicode.db
 
 # OS
 .DS_Store
