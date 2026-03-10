@@ -118,7 +118,7 @@
                 {{ selectedFile ? selectedFile.name : '数据预览' }}
               </h3>
               <span class="text-xs text-gray-400" v-if="selectedFile">
-                {{ previewTotalRows ?? selectedFile.row_count ?? '未知' }} 行 × {{ previewTotalColumns ?? selectedFile.column_count ?? '未知' }} 列 (预览仅显示前5行)
+                {{ previewTotalRows ?? selectedFile.row_count ?? '未知' }} 行 × {{ previewTotalColumns ?? selectedFile.column_count ?? '未知' }} 列 (预览仅显示前10行)
               </span>
             </div>
 
@@ -176,25 +176,28 @@
               {{ summaryError }}
             </div>
 
-            <div v-else-if="selectedFile && datasetSummary" class="p-5 space-y-5">
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div v-else-if="selectedFile && datasetSummary" class="p-4 space-y-3">
+              <div class="grid grid-cols-2 gap-2 xl:grid-cols-4">
                 <div
                   v-for="item in summaryCards"
                   :key="item.label"
-                  :class="['rounded-2xl border p-4', item.cardClass]"
+                  :class="['flex items-center gap-2 rounded-lg border px-2.5 py-2', item.cardClass]"
                 >
-                  <p class="text-[11px] font-medium uppercase tracking-[0.22em] text-gray-500">{{ item.label }}</p>
-                  <p class="mt-3 text-2xl font-heading font-semibold text-gray-900">{{ item.value }}</p>
-                  <p class="mt-1 text-xs text-gray-500">{{ item.description }}</p>
+                  <svg :class="['h-3.5 w-3.5 shrink-0', item.iconClass]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="item.icon"></svg>
+                  <p class="text-base font-heading font-semibold text-gray-900 leading-none">{{ item.value }}</p>
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-medium text-gray-500 truncate">{{ item.label }}</p>
+                    <p class="text-[10px] text-gray-400 truncate">{{ item.description }}</p>
+                  </div>
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-gray-100 bg-gradient-to-r from-slate-50 via-white to-emerald-50/40 p-4">
-                <div class="flex flex-wrap items-center gap-2">
+              <div class="rounded-lg border border-gray-100 bg-gradient-to-r from-slate-50 via-white to-emerald-50/40 px-3 py-2">
+                <div class="flex flex-wrap items-center gap-1.5">
                   <span
                     v-for="item in qualitySignals"
                     :key="item.label"
-                    class="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white px-3 py-1.5 text-xs text-gray-600 shadow-sm"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white px-2.5 py-1 text-[11px] text-gray-600 shadow-sm"
                   >
                     <span class="font-medium text-gray-900">{{ item.label }}</span>
                     <span>{{ item.value }}</span>
@@ -202,53 +205,52 @@
                 </div>
               </div>
 
-              <div class="overflow-hidden rounded-2xl border border-gray-100">
+              <div class="overflow-hidden rounded-lg border border-gray-100">
                 <div class="overflow-x-auto">
-                  <table class="w-full min-w-[860px]">
+                  <table class="w-full min-w-[800px]">
                     <thead class="bg-slate-50/80">
                       <tr>
-                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">变量</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">类型</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">缺失情况</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">关键统计</th>
+                        <th class="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">变量</th>
+                        <th class="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">类型</th>
+                        <th class="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">缺失情况</th>
+                        <th class="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">关键统计</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr
                         v-for="column in datasetSummary.columns"
                         :key="column.name"
-                        class="border-t border-gray-100 align-top transition-colors hover:bg-slate-50/60"
+                        class="border-t border-gray-50 align-middle transition-colors hover:bg-slate-50/60"
                       >
-                        <td class="px-4 py-3">
-                          <p class="text-sm font-semibold text-gray-900">{{ column.name }}</p>
-                          <p class="mt-0.5 text-[11px] text-gray-400">{{ formatColumnFootnote(column) }}</p>
+                        <td class="px-3 py-1.5">
+                          <p class="text-[13px] font-semibold text-gray-900 leading-tight">{{ column.name }}</p>
                         </td>
-                        <td class="px-4 py-3">
-                          <div v-if="isEditableKind(column.kind)" class="space-y-1.5">
-                            <div class="inline-flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <td class="px-3 py-1.5">
+                          <div v-if="isEditableKind(column.kind)" class="space-y-0.5">
+                            <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                               <button
                                 type="button"
-                                class="inline-flex min-w-[64px] items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold transition-colors"
+                                class="inline-flex items-center justify-center gap-1 px-2 py-1 text-[10px] font-semibold transition-colors"
                                 :class="column.kind === 'categorical' ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50'"
                                 :disabled="updatingColumnKind === column.name"
                                 @click="handleColumnKindChange(column, 'categorical')"
                               >
-                                <span class="rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] tracking-[0.12em]">CAT</span>
+                                <span class="rounded bg-white/80 px-1 py-px text-[9px] tracking-wider">CAT</span>
                                 <span>分类</span>
                               </button>
                               <button
                                 type="button"
-                                class="inline-flex min-w-[64px] items-center justify-center gap-1.5 border-l border-slate-200 px-3 py-1.5 text-[11px] font-semibold transition-colors"
+                                class="inline-flex items-center justify-center gap-1 border-l border-slate-200 px-2 py-1 text-[10px] font-semibold transition-colors"
                                 :class="column.kind === 'numeric' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'"
                                 :disabled="updatingColumnKind === column.name"
                                 @click="handleColumnKindChange(column, 'numeric')"
                               >
-                                <span class="rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] tracking-[0.12em]">CON</span>
+                                <span class="rounded bg-white/80 px-1 py-px text-[9px] tracking-wider">CON</span>
                                 <span>连续</span>
                               </button>
                             </div>
-                            <div class="flex items-center gap-2 text-[10px] text-gray-400">
-                              <span>{{ column.kind_source === 'manual' ? '已手动指定' : '自动识别，可手动调整' }}</span>
+                            <div class="flex items-center gap-1.5 text-[9px] text-gray-400">
+                              <span>{{ column.kind_source === 'manual' ? '已手动指定' : '自动识别' }}</span>
                               <button
                                 v-if="column.kind_source === 'manual'"
                                 type="button"
@@ -260,20 +262,20 @@
                               </button>
                             </div>
                           </div>
-                          <span v-else :class="['inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[11px] font-medium', kindBadgeClass(column.kind)]">
-                            <span :class="['inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[10px] font-semibold tracking-[0.12em]', kindMarkerClass(column.kind)]">
+                          <span v-else :class="['inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[10px] font-medium', kindBadgeClass(column.kind)]">
+                            <span :class="['inline-flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[9px] font-semibold tracking-wider', kindMarkerClass(column.kind)]">
                               {{ kindShortLabel(column.kind) }}
                             </span>
                             <span>{{ kindLabel(column.kind) }}</span>
                           </span>
                         </td>
-                        <td class="px-4 py-3">
-                          <div class="min-w-[150px]">
-                            <div class="flex items-center justify-between gap-3">
-                              <span class="text-sm font-medium text-gray-900">{{ formatPercent(column.missing_rate) }}</span>
-                              <span class="text-[11px] text-gray-400">{{ column.missing_count }} / {{ datasetSummary.total_rows }}</span>
+                        <td class="px-3 py-1.5">
+                          <div class="min-w-[120px]">
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="text-[13px] font-medium text-gray-900">{{ formatPercent(column.missing_rate) }}</span>
+                              <span class="text-[10px] text-gray-400">{{ column.missing_count }} / {{ datasetSummary.total_rows }}</span>
                             </div>
-                            <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                            <div class="mt-1 h-1 overflow-hidden rounded-full bg-gray-100">
                               <div
                                 class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all"
                                 :style="{ width: `${Math.min(100, column.missing_rate * 100)}%` }"
@@ -281,9 +283,8 @@
                             </div>
                           </div>
                         </td>
-                        <td class="px-4 py-3">
-                          <p class="text-sm text-gray-700">{{ formatColumnPrimaryStat(column) }}</p>
-                          <p class="mt-0.5 text-[11px] text-gray-400">{{ formatColumnSecondaryStat(column) }}</p>
+                        <td class="px-3 py-1.5">
+                          <p class="text-[13px] text-gray-700 leading-tight">{{ formatColumnPrimaryStat(column) }}</p>
                         </td>
                       </tr>
                     </tbody>
@@ -395,24 +396,32 @@ const summaryCards = computed(() => {
       value: summary.total_columns.toLocaleString(),
       description: `${summary.total_rows.toLocaleString()} 行可用于后续分析`,
       cardClass: 'border-slate-200 bg-slate-50/80',
+      iconClass: 'text-slate-500',
+      icon: '<path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/>',
     },
     {
       label: '连续变量',
       value: summary.numeric_columns.toLocaleString(),
       description: `日期 ${summary.datetime_columns} · 布尔 ${summary.boolean_columns}`,
       cardClass: 'border-emerald-200 bg-emerald-50/70',
+      iconClass: 'text-emerald-500',
+      icon: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
     },
     {
       label: '分类变量',
       value: summary.categorical_columns.toLocaleString(),
       description: '适合先检查编码统一性和频数分布',
       cardClass: 'border-sky-200 bg-sky-50/70',
+      iconClass: 'text-sky-500',
+      icon: '<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/>',
     },
     {
       label: '缺失单元',
       value: formatPercent(summary.missing_rate),
       description: `${summary.missing_cells.toLocaleString()} 个单元格为空`,
       cardClass: 'border-amber-200 bg-amber-50/70',
+      iconClass: 'text-amber-500',
+      icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     },
   ]
 })
@@ -444,7 +453,7 @@ async function loadDatasetPreview(datasetId: string) {
   previewLoading.value = true
   previewError.value = ''
   try {
-    const res = await getDatasetPreview(datasetId, 5)
+    const res = await getDatasetPreview(datasetId, 10)
     previewColumns.value = res.columns
     previewRows.value = res.rows
     previewTotalRows.value = res.total_rows

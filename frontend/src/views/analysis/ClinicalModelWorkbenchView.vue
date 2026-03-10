@@ -5,14 +5,14 @@
         <div class="panel-card p-3">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <h2 class="text-sm font-semibold text-slate-900">模块库</h2>
-              <p class="mt-1 text-[11px] leading-5 text-slate-500">拖入或点击创建节点</p>
+              <h2 class="text-[13px] font-semibold text-slate-900">模块库</h2>
+              <p class="mt-1 text-[10px] leading-5 text-slate-500">拖入或点击创建节点</p>
             </div>
-            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{{ totalModules }} 个模块</span>
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">{{ totalModules }} 个模块</span>
           </div>
 
           <div class="mt-3 grid gap-1">
-            <label class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">当前项目</label>
+            <label class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">当前项目</label>
             <select v-model="selectedProjectId" class="tool-input h-9" title="选择项目">
               <option value="">选择项目</option>
               <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
@@ -25,11 +25,11 @@
                 <div class="flex min-w-0 items-center gap-2">
                   <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" :class="group.iconClass" v-html="group.icon"></span>
                   <div class="min-w-0">
-                    <h3 class="truncate text-[12px] font-semibold text-slate-900">{{ group.label }}</h3>
+                    <h3 class="truncate text-[11px] font-semibold text-slate-900">{{ group.label }}</h3>
                     <p class="mt-0.5 line-clamp-1 text-[10px] leading-4 text-slate-500">{{ group.description }}</p>
                   </div>
                 </div>
-                <span class="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">{{ group.modules.length }}</span>
+                <span class="rounded-full bg-white px-2 py-1 text-[9px] font-semibold text-slate-500">{{ group.modules.length }}</span>
               </div>
 
               <div class="mt-1.5 space-y-1">
@@ -46,8 +46,8 @@
                   <div class="flex items-center gap-2.5">
                     <span class="module-library-card__icon" :class="group.iconClass" v-html="group.icon"></span>
                     <div class="min-w-0 flex-1">
-                      <p class="truncate text-[13px] font-semibold leading-[1.2] text-slate-800">{{ module.label }}</p>
-                      <p class="mt-0.5 truncate text-[11px] leading-[1.2] text-slate-500">{{ module.description }}</p>
+                      <p class="truncate text-[12px] font-semibold leading-[1.2] text-slate-800">{{ module.label }}</p>
+                      <p class="mt-0.5 truncate text-[10px] leading-[1.2] text-slate-500">{{ module.description }}</p>
                     </div>
                   </div>
                 </button>
@@ -358,7 +358,7 @@
 	            <div class="canvas-overlay-top">
 	              <div class="canvas-dock">
                 <button class="canvas-dock-btn" type="button" title="清空画布" data-tooltip="清空画布" @click="resetCanvas">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-9"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-icon lucide-square"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
                 </button>
                 <button
                   v-if="selectedNodeIds.length"
@@ -368,7 +368,7 @@
                   data-tooltip="删除所选"
                   @click="deleteSelectedNodes"
                 >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash2-icon lucide-trash-2"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
                 <button
                   v-if="hasMultiSelection"
@@ -378,7 +378,7 @@
                   data-tooltip="左对齐"
                   @click="alignSelectedNodes('left')"
                 >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16"/><path d="M8 7h11"/><path d="M8 12h8"/><path d="M8 17h13"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-start-vertical-icon lucide-align-start-vertical"><rect width="9" height="6" x="6" y="14" rx="2"/><rect width="16" height="6" x="6" y="4" rx="2"/><path d="M2 2v20"/></svg>
                 </button>
                 <button
                   v-if="hasMultiSelection"
@@ -388,7 +388,7 @@
                   data-tooltip="横向分布"
                   @click="distributeSelectedNodes('horizontal')"
                 >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="3" height="12"/><rect x="18" y="6" width="3" height="12"/><rect x="10.5" y="8" width="3" height="8"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-horizontal-space-around-icon lucide-align-horizontal-space-around"><rect width="6" height="10" x="9" y="7" rx="2"/><path d="M4 22V2"/><path d="M20 22V2"/></svg>
                 </button>
                 <button
                   v-if="hasMultiSelection"
@@ -398,22 +398,26 @@
                   data-tooltip="纵向分布"
                   @click="distributeSelectedNodes('vertical')"
                 >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="3"/><rect x="6" y="18" width="12" height="3"/><rect x="8" y="10.5" width="8" height="3"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-align-vertical-space-around-icon lucide-align-vertical-space-around"><rect width="10" height="6" x="7" y="9" rx="2"/><path d="M22 20H2"/><path d="M22 4H2"/></svg>
                 </button>
                 <button class="canvas-dock-btn" type="button" :title="isTemplatePickerOpen ? '收起模板' : '插入模板'" :data-tooltip="isTemplatePickerOpen ? '收起模板' : '插入模板'" @click="isTemplatePickerOpen = !isTemplatePickerOpen">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="13" width="7" height="7" rx="1.5"/><path d="M17.5 14v6"/><path d="M14.5 17h6"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-template-icon lucide-layout-template"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
                 </button>
 	                <button class="canvas-dock-btn is-primary" type="button" title="一键整理" data-tooltip="一键整理" @click="autoArrangeNodes">
-	                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h7"/><path d="M14 7h7"/><path d="M8 7v10"/><path d="M16 7v10"/><path d="M3 17h7"/><path d="M14 17h7"/></svg>
+	                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shelving-unit-icon lucide-shelving-unit"><path d="M12 12V9a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/><path d="M16 20v-3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3"/><path d="M20 22V2"/><path d="M4 12h16"/><path d="M4 20h16"/><path d="M4 2v20"/><path d="M4 4h16"/></svg>
 	                </button>
-	                <button class="canvas-dock-btn" type="button" title="整图居中" data-tooltip="整图居中" @click="centerGraph">
-	                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><circle cx="12" cy="12" r="3"/></svg>
+	                <button class="canvas-dock-btn" type="button" title="重置视角" data-tooltip="重置视角" @click="tidyCanvas">
+	                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-binoculars-icon lucide-binoculars"><path d="M10 10h4"/><path d="M19 7V4a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3"/><path d="M20 21a2 2 0 0 0 2-2v-3.851c0-1.39-2-2.962-2-4.829V8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2z"/><path d="M 22 16 L 2 16"/><path d="M4 21a2 2 0 0 1-2-2v-3.851c0-1.39 2-2.962 2-4.829V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2z"/><path d="M9 7V4a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v3"/></svg>
 	                </button>
-                <button class="canvas-dock-btn" type="button" title="适配视图" data-tooltip="适配视图" @click="fitGraphToView">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                <button class="canvas-dock-btn" type="button" title="撤销操作 (Ctrl+Z)" data-tooltip="撤销操作" :disabled="!undoStack.length" @click="undo">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw-icon lucide-rotate-ccw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 </button>
                 <button class="canvas-dock-btn" type="button" :title="selectedConnectionId ? '删除连线' : '取消连线'" :data-tooltip="selectedConnectionId ? '删除连线' : '取消连线'" @click="cancelPendingConnection">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+                </button>
+                <button class="canvas-dock-btn" type="button" title="保存流程" data-tooltip="保存流程" :disabled="isSavingWorkflow || !selectedProjectId" @click="saveWorkflowToBackend">
+                  <svg v-if="isSavingWorkflow" class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save-icon lucide-save"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
                 </button>
               </div>
             </div>
@@ -520,7 +524,11 @@
             <div class="flex items-center justify-between gap-2">
               <h4 class="text-sm font-semibold text-slate-900">输入</h4>
               <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-                {{ selectedNodeIncomingNodes.length ? `${selectedNodeIncomingNodes.length} 个上游` : '流程起点' }}
+                {{
+                  selectedNodeIncomingNodes.length
+                    ? `${selectedNodeIncomingNodes.length} 个上游`
+                    : (showInputDatasetPicker ? '流程起点' : '需上游输入')
+                }}
               </span>
             </div>
 
@@ -534,7 +542,7 @@
                 </span>
             </div>
 
-            <div v-else class="mt-1.5 space-y-1.5">
+            <div v-else-if="showInputDatasetPicker" class="mt-1.5 space-y-1.5">
               <div class="grid gap-1 sm:grid-cols-[84px_minmax(0,1fr)] sm:items-center">
                 <label class="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">输入数据集</label>
                 <select
@@ -557,6 +565,10 @@
                   <p class="mt-0.5 text-sm font-semibold text-slate-900">{{ datasetShapeText(datasetSummary) }}</p>
                 </div>
               </div>
+            </div>
+
+            <div v-else class="mt-1.5 rounded-[10px] border border-slate-200 bg-white px-3 py-2.5 text-[11px] leading-5 text-slate-500">
+              该节点不能作为流程起点，请先连接上游模型节点（Logistic 或 Cox）后再运行。
             </div>
           </div>
 
@@ -716,7 +728,7 @@
                 :value="selectedNode.values[field.key]"
                 @change="updateNodeValue(selectedNode.id, field.key, ($event.target as HTMLSelectElement).value)"
               >
-                <option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
+                <option v-for="option in selectOptionsForField(field)" :key="option" :value="option">{{ option }}</option>
               </select>
               <select
                 v-else-if="isDatasetColumnField(selectedNode.moduleId, field.key)"
@@ -734,6 +746,46 @@
                 :placeholder="selectedNode.moduleId === 'vif' && field.key === 'cutoff' ? '建议 5 或 10' : ''"
                 @input="updateNodeValue(selectedNode.id, field.key, ($event.target as HTMLInputElement).value)"
               />
+            </div>
+          </div>
+
+          <div
+            v-if="showStandaloneModelPredictorPicker"
+            class="settings-card rounded-[10px] border border-slate-200 bg-white p-2"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <h4 class="text-sm font-semibold text-slate-900">自变量选择</h4>
+                <p class="mt-0.5 text-[11px] leading-4 text-slate-400">可选：为空则默认使用除结局/时间等以外的全部字段。</p>
+              </div>
+              <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500">{{ selectedModelPredictors.length }} 个已选</span>
+            </div>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <button class="tool-btn px-2.5 py-1 text-[11px] font-semibold" type="button" :disabled="!modelPredictorCandidateColumns.length" @click="selectAllModelPredictors()">
+                全选
+              </button>
+              <button class="tool-btn px-2.5 py-1 text-[11px] font-semibold" type="button" @click="clearModelPredictors()">
+                清空
+              </button>
+            </div>
+            <div v-if="modelPredictorCandidateColumns.length" class="mt-1.5 grid max-h-56 gap-1 overflow-y-auto pr-1 sm:grid-cols-2">
+              <button
+                v-for="column in modelPredictorCandidateColumns"
+                :key="`model-predictor-${selectedNode.id}-${column}`"
+                type="button"
+                :class="[
+                  'rounded-xl border px-2.5 py-1 text-left text-[11px] font-medium transition',
+                  selectedModelPredictors.includes(column)
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
+                ]"
+                @click="toggleModelPredictor(column)"
+              >
+                {{ column }}
+              </button>
+            </div>
+            <div v-else class="mt-1 rounded-[8px] border border-slate-200 bg-white px-2 py-1.5 text-[11px] leading-4.5 text-slate-500">
+              暂无可选字段：请先选择数据集，并设置结局/时间字段。
             </div>
           </div>
 
@@ -868,7 +920,7 @@
                 </div>
               </div>
 
-              <div v-if="normalizedNodeLogs(selectedNodeRunDetail).length" class="space-y-2">
+              <div v-if="selectedNodeRunDetail.module_id !== 'rcs' && normalizedNodeLogs(selectedNodeRunDetail).length" class="space-y-2">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">日志</p>
                 <div class="rounded-[10px] border border-slate-200 bg-white px-3 py-2.5">
                   <p
@@ -1010,16 +1062,19 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   downloadLassoPlotPdf,
   getClinicalPipelineRun,
   getClinicalPipelineRunNode,
+  getClinicalWorkflow,
   getDatasetSummary,
   getDatasets,
   getProjects,
   listClinicalPipelineRuns,
   runClinicalPipeline,
+  saveClinicalWorkflow,
+  updateClinicalWorkflow,
   type ClinicalPipelineNodeDetailResponse,
   type ClinicalPipelineRunDetailResponse,
   type ClinicalPipelineRunSummaryResponse,
@@ -1486,11 +1541,12 @@ const moduleGroups: ModuleGroup[] = [
           { key: 'timepoint', label: '预测时间点', type: 'input' },
         ],
         defaults: { scale: '100 分', timepoint: '1 year' },
-      },{
+      },
+      {
         id: 'rcs',
         label: '限制性立方样条',
         description: '为连续变量建立非线性效应。',
-        stageId: 'feature-processing',
+        stageId: 'model-validation',
         fields: [
           { key: 'target', label: '目标变量', type: 'input' },
           { key: 'knots', label: '节点数', type: 'select', options: ['3', '4', '5'] },
@@ -1556,7 +1612,10 @@ const canvasTemplates: CanvasTemplate[] = [
 const canvasRef = ref<HTMLElement | null>(null)
 const canvasNodes = ref<CanvasNode[]>([])
 const connections = ref<NodeConnection[]>([])
+const undoStack = ref<Array<{ nodes: CanvasNode[]; connections: NodeConnection[] }>>([])
+const MAX_UNDO = 50
 const route = useRoute()
+const router = useRouter()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
 const PAID_SUBSCRIPTIONS = new Set(['basic', 'pro', 'enterprise'])
@@ -1595,6 +1654,8 @@ const downloadingPlotKey = ref('')
 const runningNodeIds = ref<string[]>([])
 const isLoadingRunNode = ref(false)
 const isRestoringDraft = ref(false)
+const isSavingWorkflow = ref(false)
+const savedWorkflowId = ref<string | null>(String(route.query.workflowId || '').trim() || null)
 const pipelineRuns = ref<ClinicalPipelineRunSummaryResponse[]>([])
 const activeRunId = ref<string | null>(null)
 const activeRunDetail = ref<ClinicalPipelineRunDetailResponse | null>(null)
@@ -1614,15 +1675,55 @@ const selectedNode = computed(() => canvasNodes.value.find((node) => node.id ===
 const selectedNodeStatus = computed(() => (selectedNode.value ? nodeStatusMap.value.get(selectedNode.value.id) ?? null : null))
 const selectedNodePreview = computed(() => (selectedNode.value ? nodePreviewMap.value.get(selectedNode.value.id) ?? null : null))
 const selectedNodeIncomingNodes = computed(() => (selectedNode.value ? getIncomingNodes(selectedNode.value.id) : []))
+const showInputDatasetPicker = computed(() => {
+  if (!selectedNode.value) return false
+  if (selectedNodeIncomingNodes.value.length) return false
+  if (['field-mapping', 'missing-value', 'split', 'encoding'].includes(selectedNode.value.moduleId)) return true
+  return isStandaloneModelNode.value
+})
 const selectedNodeSettingFields = computed(() => {
   if (!selectedNode.value) return []
-  const fields = selectedNode.value.fields || []
+  const fields = findModuleById(selectedNode.value.moduleId)?.fields ?? selectedNode.value.fields ?? []
   const hasUpstream = selectedNodeIncomingNodes.value.length > 0
   if (!hasUpstream) return fields
   if (['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) {
     return fields.filter((field) => field.key !== 'dataSource')
   }
   return fields
+})
+const isStandaloneModelNode = computed(() => {
+  if (!selectedNode.value) return false
+  if (!['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) return false
+  return selectedNodeIncomingNodes.value.length === 0
+})
+const normalizedStandaloneModelDataSource = computed(() => {
+  if (!selectedNode.value) return '上游输出'
+  const raw = `${selectedNode.value.values.dataSource ?? ''}`.trim().replace('数据集', '').replace(/\s+/g, '')
+  if (!raw) return '上游输出'
+  if (raw.includes('原始')) return '原始数据'
+  if (raw.includes('训练')) return '训练集'
+  if (raw.includes('测试')) return '测试集'
+  if (raw.includes('上游')) return '上游输出'
+  return raw
+})
+const showStandaloneModelPredictorPicker = computed(() => isStandaloneModelNode.value && normalizedStandaloneModelDataSource.value !== '上游输出')
+const selectedModelPredictors = computed(() => {
+  if (!selectedNode.value) return []
+  if (!['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) return []
+  return parsePredictorFields(selectedNode.value.values.predictorFields || '')
+})
+const modelPredictorCandidateColumns = computed(() => {
+  if (!selectedNode.value) return []
+  if (!showStandaloneModelPredictorPicker.value) return []
+  const fieldMappingNode = getFieldMappingNode()
+  const excluded = new Set<string>()
+  const mappedId = (fieldMappingNode?.values.idField || '').trim()
+  if (mappedId) excluded.add(mappedId)
+  const outcomeVar = (fieldMappingNode?.values.outcomeField || selectedNode.value.values.outcomeField || '').trim()
+  const timeVar = (fieldMappingNode?.values.timeField || selectedNode.value.values.timeField || '').trim()
+  if (outcomeVar) excluded.add(outcomeVar)
+  if (timeVar) excluded.add(timeVar)
+  return datasetColumnNames.value.filter((name) => !excluded.has(name))
 })
 const selectedDatasetOption = computed(() => datasetOptions.value.find((item) => item.id === selectedDatasetId.value) ?? null)
 const datasetColumnNames = computed(() => (datasetSummary.value?.columns || []).map((column) => column.name))
@@ -1667,10 +1768,12 @@ const premiumPlotNodeModules = new Set([
   'lasso-selection',
   'rf-importance',
   'boruta-selection',
+  'rcs',
   'logistic-model',
   'cox-model',
   'xgboost',
   'random-forest',
+  'model-comparison',
   'roc',
   'calibration',
   'dca',
@@ -1902,7 +2005,8 @@ function inputPortTitle(nodeId: string) {
 }
 
 function summarizeNode(node: CanvasNode) {
-  return node.fields
+  const fields = findModuleById(node.moduleId)?.fields ?? node.fields
+  return fields
     .slice(0, 3)
     .map((field) => {
       const value = node.values[field.key]
@@ -1992,7 +2096,7 @@ function applyWorkflowState(payload: {
     moduleId: node.moduleId ?? node.module_id ?? '',
     label: node.label,
     description: node.description ?? findModuleById(node.moduleId ?? node.module_id ?? '')?.description ?? '',
-    stageId: (node.stageId ?? node.stage_id ?? 'data-preparation') as StageId,
+    stageId: (findModuleById(node.moduleId ?? node.module_id ?? '')?.stageId ?? node.stageId ?? node.stage_id ?? 'data-preparation') as StageId,
     fields: findModuleById(node.moduleId ?? node.module_id ?? '')?.fields ?? [],
     values: { ...(node.values ?? {}) },
     x: Number(node.x ?? 72),
@@ -2018,6 +2122,80 @@ function saveDraftToLocal() {
   if (isRestoringDraft.value || typeof window === 'undefined') return
   const key = localDraftKey(selectedProjectId.value || null)
   window.localStorage.setItem(key, JSON.stringify(serializeCanvasState()))
+}
+
+async function saveWorkflowToBackend() {
+  if (!selectedProjectId.value || isSavingWorkflow.value) return
+  isSavingWorkflow.value = true
+  try {
+    const nodes = canvasNodes.value.map((n, i) => ({
+      id: n.id,
+      module_id: n.moduleId,
+      label: n.label,
+      description: n.description || null,
+      stage_id: findModuleById(n.moduleId)?.stageId ?? n.stageId,
+      values: { ...n.values },
+      x: n.x,
+      y: n.y,
+      order: n.order ?? i,
+    }))
+    const conns = connections.value.map((c) => ({
+      id: c.id,
+      from_node_id: c.fromNodeId,
+      to_node_id: c.toNodeId,
+      output_port_id: c.outputPortId || null,
+    }))
+
+    if (savedWorkflowId.value) {
+      await updateClinicalWorkflow(savedWorkflowId.value, {
+        name: workflowName.value,
+        nodes,
+        connections: conns,
+      })
+    } else {
+      const res = await saveClinicalWorkflow({
+        project_id: selectedProjectId.value,
+        name: workflowName.value,
+        workflow_kind: 'clinical_prediction',
+        nodes,
+        connections: conns,
+      })
+      savedWorkflowId.value = res.id
+    }
+    if (savedWorkflowId.value) {
+      await router.replace({
+        name: 'ClinicalModelBuilder',
+        query: {
+          ...route.query,
+          projectId: selectedProjectId.value,
+          workflowId: savedWorkflowId.value,
+        },
+      })
+    }
+    notificationStore.success('流程已保存')
+  } catch (err: any) {
+    const msg = err?.response?.data?.detail || err?.message || '保存失败'
+    notificationStore.error('保存失败', msg)
+  } finally {
+    isSavingWorkflow.value = false
+  }
+}
+
+async function loadWorkflowFromBackend(workflowId: string) {
+  const normalizedId = String(workflowId || '').trim()
+  if (!normalizedId) return
+  try {
+    const detail = await getClinicalWorkflow(normalizedId)
+    savedWorkflowId.value = detail.id
+    applyWorkflowState({
+      nodes: detail.nodes as any,
+      connections: detail.connections as any,
+      workflowName: detail.name,
+    })
+    notificationStore.success('已加载保存流程', detail.name || 'workflow')
+  } catch (error: any) {
+    notificationStore.error('流程加载失败', error?.response?.data?.detail || '请稍后重试。')
+  }
 }
 
 function restoreDraftFromLocal(projectId?: string | null) {
@@ -2636,13 +2814,23 @@ async function executeWorkflowRun(options: {
     const summary = await ensureDatasetSummary()
     const fieldMapping = runNodes.find((node) => node.moduleId === 'field-mapping') ?? null
     const templateKind = inferWorkflowTemplateKind(runNodes)
-    const outcomeFallbackNode = runNodes.find((node) => `${node.values.outcomeField || ''}`.trim().length > 0) ?? null
-    const timeFallbackNode = runNodes.find((node) => `${node.values.timeField || ''}`.trim().length > 0) ?? null
-    const outcomeVariable = (fieldMapping?.values.outcomeField || outcomeFallbackNode?.values.outcomeField || '').trim() || null
+    const outcomeFallbackNode = [...runNodes].reverse().find((node) => `${node.values.outcomeField || ''}`.trim().length > 0) ?? null
+    const timeFallbackNode = [...runNodes].reverse().find((node) => `${node.values.timeField || ''}`.trim().length > 0) ?? null
+    const outcomeVariable = (outcomeFallbackNode?.values.outcomeField || fieldMapping?.values.outcomeField || '').trim() || null
     const timeVariable = templateKind === 'survival'
-      ? ((fieldMapping?.values.timeField || timeFallbackNode?.values.timeField || '').trim() || null)
+      ? ((timeFallbackNode?.values.timeField || fieldMapping?.values.timeField || '').trim() || null)
       : null
     const eventVariable = templateKind === 'survival' ? outcomeVariable : null
+
+    const availableColumns = new Set((summary?.columns || []).map((column) => column.name))
+    if (outcomeVariable && !availableColumns.has(outcomeVariable)) {
+      notificationStore.warning('结局字段不存在', `当前选择的结局/事件字段“${outcomeVariable}”不在数据集中，请在字段映射或模型/验证节点中重新选择。`)
+      return
+    }
+    if (templateKind === 'survival' && timeVariable && !availableColumns.has(timeVariable)) {
+      notificationStore.warning('时间字段不存在', `当前选择的时间字段“${timeVariable}”不在数据集中，请在字段映射或 Cox/RCS 节点中重新选择。`)
+      return
+    }
 
     const fallbackPredictors = (summary?.columns || [])
       .map((column) => column.name)
@@ -2855,6 +3043,30 @@ function selectAllFieldMappingPredictors() {
 
 function clearFieldMappingPredictors() {
   if (!selectedNode.value || selectedNode.value.moduleId !== 'field-mapping') return
+  updateNodeValue(selectedNode.value.id, 'predictorFields', '')
+}
+
+function toggleModelPredictor(column: string) {
+  if (!selectedNode.value) return
+  if (!['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) return
+  if (!showStandaloneModelPredictorPicker.value) return
+  const current = parsePredictorFields(selectedNode.value.values.predictorFields || '')
+  const next = current.includes(column)
+    ? current.filter((item) => item !== column)
+    : [...current, column]
+  updateNodeValue(selectedNode.value.id, 'predictorFields', serializePredictorFields(next))
+}
+
+function selectAllModelPredictors() {
+  if (!selectedNode.value) return
+  if (!['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) return
+  if (!showStandaloneModelPredictorPicker.value) return
+  updateNodeValue(selectedNode.value.id, 'predictorFields', serializePredictorFields(modelPredictorCandidateColumns.value))
+}
+
+function clearModelPredictors() {
+  if (!selectedNode.value) return
+  if (!['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) return
   updateNodeValue(selectedNode.value.id, 'predictorFields', '')
 }
 
@@ -3257,8 +3469,10 @@ function buildRunPredictorVariables(fieldMapping: CanvasNode | null, summary: Da
 
 function isDatasetColumnField(moduleId: string, fieldKey: string) {
   if (!datasetColumnNames.value.length) return false
-  if (!['idField', 'outcomeField', 'timeField'].includes(fieldKey)) return false
+  if (!['idField', 'outcomeField', 'timeField', 'target'].includes(fieldKey)) return false
   if (moduleId === 'split') return false
+  if (moduleId === 'rcs' && fieldKey === 'target') return true
+  if (fieldKey === 'target') return false
   return true
 }
 
@@ -3267,9 +3481,24 @@ function datasetColumnFieldEmptyLabel(moduleId: string, fieldKey: string) {
   if (isModelOverride) {
     return '沿用字段映射'
   }
+  if (moduleId === 'rcs' && fieldKey === 'target') return datasetColumnNames.value.length ? '选择连续变量' : '暂无可用字段'
   if (fieldKey === 'idField') return datasetColumnNames.value.length ? '选择 ID 字段' : '暂无可用字段'
   if (fieldKey === 'timeField') return datasetColumnNames.value.length ? '选择时间字段' : '暂无可用字段'
   return datasetColumnNames.value.length ? '选择结局字段' : '暂无可用字段'
+}
+
+function selectOptionsForField(field: ModuleField) {
+  if (field.type !== 'select') return field.options || []
+  const options = field.options || []
+  if (!selectedNode.value) return options
+  if (
+    field.key === 'dataSource' &&
+    ['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId) &&
+    selectedNodeIncomingNodes.value.length === 0
+  ) {
+    return options.filter((option) => option !== '上游输出')
+  }
+  return options
 }
 
 function validateConnection(sourceNodeId: string, targetNodeId: string) {
@@ -3330,6 +3559,10 @@ function validateConnection(sourceNodeId: string, targetNodeId: string) {
     return { ok: false, message: '列线图只能接在 Logistic 或 Cox 模型后面。' }
   }
 
+  if (target.moduleId === 'rcs' && !['logistic-model', 'cox-model'].includes(source.moduleId)) {
+    return { ok: false, message: '限制性立方样条只能接在 Logistic 或 Cox 模型后面。' }
+  }
+
   if (target.moduleId === 'bootstrap' && source.stageId !== 'model-development') {
     return { ok: false, message: 'Bootstrap 需要直接接在模型开发节点后。' }
   }
@@ -3345,15 +3578,16 @@ function evaluateNodeStatus(node: CanvasNode, currentStatuses: Map<string, NodeS
   const hasMappedOutcome = Boolean(fieldMappingNode?.values.outcomeField?.trim())
   const hasMappedTime = Boolean(fieldMappingNode?.values.timeField?.trim())
   const incomingNodes = getIncomingNodes(node.id)
+  const moduleFields = findModuleById(node.moduleId)?.fields ?? node.fields
 
   const requiredFields = node.moduleId === 'field-mapping'
-    ? node.fields.filter((field) => {
+    ? moduleFields.filter((field) => {
         if (field.key === 'timeField') {
           return templateKind === 'survival'
         }
         return true
       })
-    : node.fields.filter((field) => {
+    : moduleFields.filter((field) => {
         if (['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(node.moduleId) && field.key === 'dataSource') {
           return incomingNodes.length === 0
         }
@@ -3500,6 +3734,7 @@ function buildNodeFromTemplate(templateNode: TemplateNodeDefinition, x: number, 
 }
 
 function addNodeFromLibrary(module: ModuleDefinition) {
+  pushUndoState()
   const canvas = canvasRef.value
   const defaultX = 60 + (canvasNodes.value.length % 3) * 320
   const defaultY = 60 + Math.floor(canvasNodes.value.length / 3) * 220
@@ -3615,6 +3850,7 @@ function selectConnection(connectionId: string) {
 }
 
 function removeNode(nodeId: string) {
+  pushUndoState()
   const node = canvasNodes.value.find((item) => item.id === nodeId)
   canvasNodes.value = canvasNodes.value.filter((item) => item.id !== nodeId)
   const removedConnectionIds = new Set(
@@ -3772,6 +4008,7 @@ function completeConnection(targetNodeId: string) {
     return
   }
 
+  pushUndoState()
   connections.value.push({
     id: `${source.id}-${target.id}`,
     fromNodeId: source.id,
@@ -3781,11 +4018,12 @@ function completeConnection(targetNodeId: string) {
   selectedConnectionId.value = null
   pendingConnectionFrom.value = null
   pendingConnectionPortId.value = null
-  addLog('link', `已连接”${source.label}” -> “${target.label}”。`)
+  addLog('link', `已连接"${source.label}" -> "${target.label}"。`)
 }
 
 function cancelPendingConnection() {
   if (selectedConnectionId.value) {
+    pushUndoState()
     const connection = connections.value.find((item) => item.id === selectedConnectionId.value)
     connections.value = connections.value.filter((item) => item.id !== selectedConnectionId.value)
     selectedConnectionId.value = null
@@ -3806,6 +4044,17 @@ function cancelPendingConnection() {
 function handleGlobalKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     closeNodeDialogs()
+    return
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+    const target = event.target as HTMLElement | null
+    const tagName = target?.tagName?.toLowerCase()
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable) {
+      return
+    }
+    event.preventDefault()
+    undo()
     return
   }
 
@@ -4261,48 +4510,60 @@ function autoArrangeNodes() {
   }
 }
 
-function centerGraph() {
-  const canvas = canvasRef.value
-  const bounds = getGraphBounds()
-  if (!canvas || !bounds) {
-    addLog('layout', '当前没有可居中的节点图。')
-    return
+function pushUndoState() {
+  undoStack.value.push({
+    nodes: JSON.parse(JSON.stringify(canvasNodes.value)),
+    connections: JSON.parse(JSON.stringify(connections.value)),
+  })
+  if (undoStack.value.length > MAX_UNDO) {
+    undoStack.value.splice(0, undoStack.value.length - MAX_UNDO)
   }
-
-  const viewportCenterX = canvas.scrollLeft / canvasScale.value + canvas.clientWidth / (2 * canvasScale.value)
-  const viewportCenterY = canvas.scrollTop / canvasScale.value + canvas.clientHeight / (2 * canvasScale.value)
-  const graphCenterX = bounds.minX + bounds.width / 2
-  const graphCenterY = bounds.minY + bounds.height / 2
-  const offsetX = viewportCenterX - graphCenterX
-  const offsetY = viewportCenterY - graphCenterY
-
-  canvasNodes.value = canvasNodes.value.map((node) => ({
-    ...node,
-    x: Math.max(24, node.x + offsetX),
-    y: Math.max(24, node.y + offsetY),
-  }))
-
-  addLog('layout', '已将整张节点图居中到当前视窗。')
 }
 
-function fitGraphToView() {
-  const canvas = canvasRef.value
-  const bounds = getGraphBounds()
-  if (!canvas || !bounds) {
-    addLog('layout', '当前没有可适配视图的节点图。')
+function undo() {
+  const state = undoStack.value.pop()
+  if (!state) {
+    addLog('layout', '没有可撤销的操作。')
     return
   }
+  canvasNodes.value = state.nodes
+  connections.value = state.connections
+  selectedNodeId.value = canvasNodes.value[0]?.id ?? null
+  selectedNodeIds.value = []
+  selectedConnectionId.value = null
+  addLog('layout', '已撤销上一步操作。')
+}
 
-  const padding = 96
-  const fitScaleX = (canvas.clientWidth - padding) / bounds.width
-  const fitScaleY = (canvas.clientHeight - padding) / bounds.height
-  const nextScale = Math.min(1.6, Math.max(0.5, Math.min(fitScaleX, fitScaleY)))
-  setZoom(nextScale)
-  addLog('layout', `已按当前视口适配缩放至 ${Math.round(nextScale * 100)}%。`)
-
-  window.requestAnimationFrame(() => {
-    scrollCanvasToNodeBounds(bounds, 64)
-  })
+function tidyCanvas() {
+  pushUndoState()
+  if (
+    !arrangeNodesByConnections({ columnGap: 20, rowGap: 44, paddingX: 72, paddingY: 70 }) &&
+    !arrangeNodes({ columnGap: 20, rowGap: 56, paddingX: 72, paddingY: 70 })
+  ) {
+    undoStack.value.pop()
+    return
+  }
+  // 整理后居中到视口
+  const canvas = canvasRef.value
+  const bounds = getGraphBounds()
+  if (canvas && bounds) {
+    const viewportCenterX = canvas.scrollLeft / canvasScale.value + canvas.clientWidth / (2 * canvasScale.value)
+    const viewportCenterY = canvas.scrollTop / canvasScale.value + canvas.clientHeight / (2 * canvasScale.value)
+    const graphCenterX = bounds.minX + bounds.width / 2
+    const graphCenterY = bounds.minY + bounds.height / 2
+    const offsetX = viewportCenterX - graphCenterX
+    const offsetY = viewportCenterY - graphCenterY
+    canvasNodes.value = canvasNodes.value.map((node) => ({
+      ...node,
+      x: Math.max(24, node.x + offsetX),
+      y: Math.max(24, node.y + offsetY),
+    }))
+  }
+  addLog('layout', '已整理画布：节点有序排列并居中展示。')
+  const finalBounds = getGraphBounds()
+  if (finalBounds) {
+    window.requestAnimationFrame(() => scrollCanvasToNodeBounds(finalBounds, 72))
+  }
 }
 
 function stepZoom(delta: number) {
@@ -4338,6 +4599,7 @@ function clearLogs() {
 }
 
 function resetCanvas() {
+  pushUndoState()
   canvasNodes.value = []
   connections.value = []
   selectedNodeIds.value = []
@@ -4410,6 +4672,20 @@ watch(
 )
 
 watch(
+  () => [isSettingsDialogOpen.value, selectedNodeId.value],
+  () => {
+    if (!isSettingsDialogOpen.value) return
+    if (!selectedNode.value) return
+    if (selectedNodeIncomingNodes.value.length) return
+    if (!['logistic-model', 'cox-model', 'xgboost', 'random-forest'].includes(selectedNode.value.moduleId)) return
+    const current = `${selectedNode.value.values.dataSource ?? ''}`.trim()
+    if (!current || current === '上游输出') {
+      updateNodeValue(selectedNode.value.id, 'dataSource', '原始数据')
+    }
+  },
+)
+
+watch(
   () => [
     selectedNodeRunDetail.value,
     selectedNodeTables.value.length,
@@ -4449,9 +4725,14 @@ onMounted(() => {
     if (selectedProjectId.value) {
       await loadDatasetsForProject(selectedProjectId.value)
     }
-    const restored = restoreDraftFromLocal(selectedProjectId.value || null)
-    if (restored) {
-      notificationStore.success('已恢复本地草稿', '你上次编辑的临床模型流程已自动恢复。')
+    const queryWorkflowId = String(route.query.workflowId || '').trim()
+    if (queryWorkflowId) {
+      await loadWorkflowFromBackend(queryWorkflowId)
+    } else {
+      const restored = restoreDraftFromLocal(selectedProjectId.value || null)
+      if (restored) {
+        notificationStore.success('已恢复本地草稿', '你上次编辑的临床模型流程已自动恢复。')
+      }
     }
     await refreshPipelineRuns()
     if (selectedDatasetId.value) {
@@ -4463,6 +4744,25 @@ onMounted(() => {
     }
   })()
 })
+
+watch(
+  () => route.query.projectId,
+  async (next) => {
+    const normalized = String(next || '').trim()
+    if (!normalized || normalized === selectedProjectId.value) return
+    selectedProjectId.value = normalized
+    await loadDatasetsForProject(selectedProjectId.value)
+  },
+)
+
+watch(
+  () => route.query.workflowId,
+  async (next) => {
+    const normalized = String(next || '').trim()
+    if (!normalized || normalized === savedWorkflowId.value) return
+    await loadWorkflowFromBackend(normalized)
+  },
+)
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)

@@ -29,6 +29,7 @@ from app.services.regression_service import (
     DcaValidationExecutionResult,
     LassoRegressionExecutionResult,
     LogisticRegressionExecutionResult,
+    ModelComparisonExecutionResult,
     NomogramExecutionResult,
     RocValidationExecutionResult,
     RandomForestSelectionExecutionResult,
@@ -41,10 +42,12 @@ from app.services.regression_service import (
     run_dca_validation,
     run_lasso_regression,
     run_logistic_regression,
+    run_model_comparison_delong,
     run_missing_value_processing,
     run_nomogram_plot,
     run_random_forest_importance_selection,
     run_random_forest_model,
+    run_rcs_transform,
     run_roc_validation,
     run_univariate_cox_screen,
     run_univariate_logistic_screen,
@@ -194,7 +197,21 @@ def _required_columns(
         raise BadRequest("请至少选择一个预测变量")
 
     if template_kind == "binary" and any(
-        module_id in {"univariate-screen", "lasso-selection", "rf-importance", "boruta-selection", "logistic-model", "xgboost", "random-forest", "roc", "calibration", "dca", "nomogram"}
+        module_id
+        in {
+            "univariate-screen",
+            "lasso-selection",
+            "rf-importance",
+            "boruta-selection",
+            "rcs",
+            "logistic-model",
+            "xgboost",
+            "random-forest",
+            "roc",
+            "calibration",
+            "dca",
+            "nomogram",
+        }
         for module_id in active_modules
     ):
         if not outcome_variable:
@@ -202,7 +219,7 @@ def _required_columns(
         return _clean_str_list([outcome_variable, *predictors, *split_runtime_columns])
 
     if template_kind == "survival" and any(
-        module_id in {"univariate-screen", "cox-model", "bootstrap", "nomogram"}
+        module_id in {"univariate-screen", "rcs", "cox-model", "bootstrap", "nomogram"}
         for module_id in active_modules
     ):
         if not time_variable or not event_variable:
@@ -231,6 +248,51 @@ def _supports_binary_outcome(series: pd.Series) -> bool:
         unique_values = sorted(float(item) for item in pd.unique(numeric))
         return len(unique_values) == 2
     return int(non_null.astype(str).nunique(dropna=True)) == 2
+
+
+def _parse_predictor_fields(raw: object) -> list[str]:
+    if raw is None:
+        return []
+    text = str(raw).strip()
+    if not text:
+        return []
+    parts = [item.strip() for item in text.split(",")]
+    return [item for item in parts if item]
+
+
+def _resolve_model_predictors(
+    *,
+    node: WorkflowNodeRequest,
+    df: pd.DataFrame,
+    fallback_predictors: list[str],
+    exclude_columns: set[str],
+    allow_override: bool,
+) -> list[str]:
+    """Resolve predictors for model nodes.
+
+    - If the node provides predictorFields and allow_override=True, use that list (after validation/filter).
+    - Otherwise fall back to upstream/pipeline predictors.
+    """
+
+    specified = _parse_predictor_fields(node.values.get("predictorFields")) if allow_override else []
+    if specified:
+        missing = [name for name in specified if name not in df.columns]
+        if missing:
+            raise BadRequest(f"模型节点自变量不存在: {', '.join(missing)}")
+        filtered = [name for name in specified if name not in exclude_columns]
+        if not filtered:
+            raise BadRequest("请至少选择一个自变量用于建模")
+        return filtered
+
+    filtered_fallback = [name for name in _clean_str_list(fallback_predictors) if name in df.columns and name not in exclude_columns]
+    if filtered_fallback:
+        return filtered_fallback
+
+    remaining = [name for name in df.columns if name not in exclude_columns]
+    if remaining:
+        return remaining
+
+    raise BadRequest("当前数据集中没有可用于建模的自变量")
 
 
 def _node_map(workflow_nodes: list[WorkflowNodeRequest]) -> dict[str, WorkflowNodeRequest]:
@@ -821,7 +883,7 @@ def _can_start_without_upstream(node: WorkflowNodeRequest) -> bool:
         return True
     if node.stage_id == "model-development":
         data_source = str(node.values.get("dataSource") or "").strip()
-        return data_source in {"原始数据", "原始", "原始数据源", "测试集", "测试", "训练集", "训练"}
+        return data_source in {"", "上游输出", "原始数据", "原始", "原始数据源", "测试集", "测试", "训练集", "训练"}
     return False
 
 
@@ -944,6 +1006,8 @@ def _resolve_model_input_frames(
 
     raw_value = str(node.values.get("dataSource") or "").strip()
     normalized = raw_value.replace("数据集", "").replace(" ", "")
+    if not normalized or normalized in {"上游输出", "upstream"}:
+        return base_context.df.copy(), None, "原始数据"
     if normalized in {"原始", "原始数据", "原始数据源"}:
         return base_context.df.copy(), None, "原始数据"
 
@@ -1532,7 +1596,18 @@ def run_clinical_prediction_pipeline(
     )
     _validate_columns(df, analysis_columns)
     incoming_map = _incoming_connection_map(workflow_nodes, workflow_connections)
-    requires_binary_outcome_modules = {"univariate-screen", "lasso-selection", "rf-importance", "boruta-selection", "logistic-model", "roc", "calibration", "dca", "nomogram"}
+    requires_binary_outcome_modules = {
+        "univariate-screen",
+        "lasso-selection",
+        "rf-importance",
+        "boruta-selection",
+        "rcs",
+        "logistic-model",
+        "roc",
+        "calibration",
+        "dca",
+        "nomogram",
+    }
     runnable_requires_binary = [
         node
         for node in workflow_nodes
@@ -2433,7 +2508,149 @@ def run_clinical_prediction_pipeline(
                 )
             )
             logs.append(f"特征合并节点 {node.label} 已执行，当前候选变量数 {len(context.predictors)}。")
-        elif node.module_id in {"rcs", "interaction"}:
+        elif node.module_id == "rcs":
+            target = str(node.values.get("target") or "").strip()
+            knots_raw = str(node.values.get("knots") or "4").strip()
+            try:
+                knots_count = int(knots_raw)
+            except ValueError as exc:
+                raise BadRequest("限制性立方样条的节点数必须是 3/4/5") from exc
+
+            original_train_df = context.df.copy()
+            input_port_id = getattr(incoming_connections[0], "output_port_id", None) if incoming_connections else None
+            is_test_port = input_port_id == "test"
+            rcs_result = run_rcs_transform(
+                train_df=original_train_df,
+                test_df=None if is_test_port else context.holdout_frames.get("测试集"),
+                dataset_name=dataset_name,
+                template_kind=template_kind,
+                target=target,
+                knots_count=knots_count,
+                outcome_variable=outcome_variable,
+                time_variable=time_variable,
+                event_variable=event_variable,
+            )
+
+            context.df = rcs_result.transformed_df
+            next_holdout_frames = dict(context.holdout_frames)
+            if is_test_port:
+                next_holdout_frames["测试集"] = rcs_result.transformed_df.copy()
+            else:
+                if "训练集" in next_holdout_frames:
+                    next_holdout_frames["训练集"] = rcs_result.transformed_df.copy()
+                if rcs_result.has_test and rcs_result.transformed_test_df is not None:
+                    next_holdout_frames["测试集"] = rcs_result.transformed_test_df.copy()
+                else:
+                    next_holdout_frames.pop("测试集", None)
+
+                # Best-effort: if there are extra holdout splits, try to transform them too.
+                extra_labels = [label for label in next_holdout_frames.keys() if label not in {"训练集", "测试集"}]
+                for label in extra_labels:
+                    frame = next_holdout_frames.get(label)
+                    if frame is None or frame.empty:
+                        continue
+                    if target and target in frame.columns:
+                        extra_result = run_rcs_transform(
+                            train_df=original_train_df,
+                            test_df=frame,
+                            dataset_name=dataset_name,
+                            template_kind=template_kind,
+                            target=target,
+                            knots_count=knots_count,
+                            outcome_variable=outcome_variable,
+                            time_variable=time_variable,
+                            event_variable=event_variable,
+                        )
+                        if extra_result.transformed_test_df is not None and extra_result.has_test:
+                            next_holdout_frames[label] = extra_result.transformed_test_df.copy()
+
+            context.holdout_frames = next_holdout_frames
+
+            basis_columns = rcs_result.basis_columns
+            predictor_replacements = {rcs_result.target: basis_columns} if basis_columns else {}
+            next_predictors = _replace_predictors(context.predictors, predictor_replacements)
+            if rcs_result.target in next_predictors:
+                next_predictors = [item for item in next_predictors if item != rcs_result.target]
+            if basis_columns and not any(item in next_predictors for item in basis_columns):
+                next_predictors = _clean_str_list([*next_predictors, *basis_columns])
+
+            for column in basis_columns:
+                context.kind_overrides[column] = "numeric"
+
+            context.predictors = next_predictors
+            final_predictors = context.predictors
+
+            knots_values_text = ", ".join(f"{item:.6g}" for item in (rcs_result.knots_values or [])) or "NA"
+            output_table_columns = ["item", "value"]
+            output_table_rows = [
+                ["target", rcs_result.target],
+                ["knots_count", rcs_result.knots_count],
+                ["knots_values", knots_values_text],
+                ["p_overall", rcs_result.p_overall],
+                ["p_nonlinear", rcs_result.p_nonlinear],
+                ["basis_columns", ", ".join(basis_columns)],
+            ]
+
+            artifacts = [
+                _artifact_from_bytes(
+                    artifact_type="dataset",
+                    name="RCS 变换后训练集",
+                    filename=f"{dataset_name}_rcs_train.csv",
+                    media_type="text/csv",
+                    content=dataframe_to_csv_bytes(rcs_result.transformed_df),
+                ),
+                *_plots_to_artifacts(rcs_result.plots),
+            ]
+            if rcs_result.has_test and rcs_result.transformed_test_df is not None:
+                artifacts.append(
+                    _artifact_from_bytes(
+                        artifact_type="dataset",
+                        name="RCS 变换后测试集",
+                        filename=f"{dataset_name}_rcs_test.csv",
+                        media_type="text/csv",
+                        content=dataframe_to_csv_bytes(rcs_result.transformed_test_df),
+                    )
+                )
+
+            node_results.append(
+                PipelineNodeStatusData(
+                    node_id=node.id,
+                    module_id=node.module_id,
+                    label=node.label,
+                    stage_id=node.stage_id,
+                    status="completed",
+                    message=f"RCS 已完成：{rcs_result.target} (nk={rcs_result.knots_count})",
+                    details=[
+                        f"p_overall={rcs_result.p_overall if rcs_result.p_overall is not None else 'NA'}",
+                        f"p_nonlinear={rcs_result.p_nonlinear if rcs_result.p_nonlinear is not None else 'NA'}",
+                    ],
+                    input_snapshot={
+                        "target": rcs_result.target,
+                        "knots_count": rcs_result.knots_count,
+                        "template_kind": template_kind,
+                        "has_test": bool(context.holdout_frames.get("测试集") is not None) if not is_test_port else False,
+                        "input_port": input_port_id or "default",
+                    },
+                    output_summary={
+                        "basis_column_count": len(basis_columns),
+                        "predictor_count": len(context.predictors),
+                    },
+                    output_tables=[
+                        {
+                            "name": "rcs_summary",
+                            "columns": output_table_columns,
+                            "rows": output_table_rows,
+                        }
+                    ],
+                    output_plots=_plots_to_output_payload(rcs_result.plots),
+                    artifacts=artifacts,
+                    logs=[],
+                    next_dataset_ref=f"inmemory://{node.id}/rcs_transformed_dataset",
+                    next_variable_set=context.predictors,
+                )
+            )
+            logs.append(f"RCS 节点 {node.label} 已执行：{rcs_result.target} -> {len(basis_columns)} 个基函数列。")
+        elif node.module_id == "interaction":
             node_results.append(
                 PipelineNodeStatusData(
                     node_id=node.id,
@@ -2472,7 +2689,13 @@ def run_clinical_prediction_pipeline(
             if data_source_label in {"原始数据", "测试集"}:
                 context.holdout_frames = {}
             context.df = model_df
-            predictors_for_model = context.predictors
+            predictors_for_model = _resolve_model_predictors(
+                node=node,
+                df=model_df,
+                fallback_predictors=context.predictors,
+                exclude_columns={outcome_variable},
+                allow_override=not bool(incoming_connections),
+            )
             entry_mode = str(node.values.get("entry") or "筛选后进入")
             logistic_result = run_logistic_regression(
                 df=model_df,
@@ -2594,12 +2817,19 @@ def run_clinical_prediction_pipeline(
             if data_source_label in {"原始数据", "测试集"}:
                 context.holdout_frames = {}
             context.df = model_df
+            predictors_for_model = _resolve_model_predictors(
+                node=node,
+                df=model_df,
+                fallback_predictors=context.predictors,
+                exclude_columns={time_variable, event_variable},
+                allow_override=not bool(incoming_connections),
+            )
             cox_result = run_cox_regression(
                 df=model_df,
                 dataset_name=dataset_name,
                 time_variable=time_variable or "",
                 event_variable=event_variable or "",
-                predictor_variables=context.predictors,
+                predictor_variables=predictors_for_model,
                 alpha=alpha,
                 apply_univariate_screening=False,
                 predictor_kind_overrides=context.kind_overrides,
@@ -2635,7 +2865,7 @@ def run_clinical_prediction_pipeline(
                     input_snapshot={
                         "data_source": data_source_label,
                         "input_rows": int(model_df.shape[0]),
-                        "predictors": context.predictors,
+                        "predictors": predictors_for_model,
                         "time_variable": time_variable,
                         "event_variable": event_variable,
                         "selection": str(node.values.get("entry") or "筛选后进入"),
@@ -2706,6 +2936,13 @@ def run_clinical_prediction_pipeline(
                 context.holdout_frames = {}
                 test_df = None
             context.df = model_df
+            predictors_for_model = _resolve_model_predictors(
+                node=node,
+                df=model_df,
+                fallback_predictors=context.predictors,
+                exclude_columns={outcome_variable},
+                allow_override=not bool(incoming_connections),
+            )
             if node.module_id == "random-forest":
                 trees = _parse_int_value(node.values.get("trees"), 500, label="树数量")
                 mtry = str(node.values.get("mtry") or "sqrt(p)").strip() or "sqrt(p)"
@@ -2715,7 +2952,7 @@ def run_clinical_prediction_pipeline(
                     test_df=test_df,
                     dataset_name=dataset_name,
                     outcome_variable=outcome_variable,
-                    predictor_variables=context.predictors,
+                    predictor_variables=predictors_for_model,
                     trees=trees,
                     mtry=mtry,
                     seed=seed,
@@ -2754,7 +2991,7 @@ def run_clinical_prediction_pipeline(
                     test_df=test_df,
                     dataset_name=dataset_name,
                     outcome_variable=outcome_variable,
-                    predictor_variables=context.predictors,
+                    predictor_variables=predictors_for_model,
                     eta=eta,
                     depth=depth,
                     rounds=rounds,
@@ -2813,7 +3050,7 @@ def run_clinical_prediction_pipeline(
                     input_snapshot={
                         "data_source": data_source_label,
                         "input_rows": int(model_df.shape[0]),
-                        "predictors": context.predictors,
+                        "predictors": predictors_for_model,
                         "has_test_set": bool(test_df is not None and not test_df.empty),
                     },
                     output_summary=output_summary,
@@ -2851,29 +3088,159 @@ def run_clinical_prediction_pipeline(
                 )
             )
         elif node.module_id == "model-comparison":
-            upstream_models = [
-                source_id for source_id in [item.from_node_id for item in incoming_connections]
-                if (
-                    node_contexts.get(source_id)
-                    and (
-                        node_contexts[source_id].logistic_result
-                        or node_contexts[source_id].cox_result
-                        or node_contexts[source_id].random_forest_model_result
-                        or node_contexts[source_id].xgboost_model_result
+            if template_kind != "binary":
+                node_results.append(
+                    PipelineNodeStatusData(
+                        node_id=node.id,
+                        module_id=node.module_id,
+                        label=node.label,
+                        stage_id=node.stage_id,
+                        status="unsupported",
+                        message="模型比较（DeLong）仅支持二分类模型输入",
                     )
                 )
+                continue
+
+            if not outcome_variable:
+                raise BadRequest("模型比较缺少结局变量")
+
+            incoming_sources = [item.from_node_id for item in incoming_connections]
+            specs: list[dict[str, object]] = []
+            excluded_models: list[str] = []
+            seen_names: set[str] = set()
+
+            def _unique_name(name: str) -> str:
+                text = name.strip() or "model"
+                if text not in seen_names:
+                    seen_names.add(text)
+                    return text
+                index = 2
+                while f"{text} #{index}" in seen_names:
+                    index += 1
+                unique = f"{text} #{index}"
+                seen_names.add(unique)
+                return unique
+
+            for source_id in incoming_sources:
+                source_node = nodes_by_id.get(source_id)
+                source_ctx = node_contexts.get(source_id)
+                if not source_node or not source_ctx:
+                    continue
+
+                model_type: str | None = None
+                predictors: list[str] | None = None
+                if source_node.module_id == "logistic-model" and source_ctx.logistic_result:
+                    model_type = "logistic"
+                    predictors = source_ctx.logistic_result.predictor_variables
+                elif source_node.module_id == "random-forest" and source_ctx.random_forest_model_result:
+                    if source_ctx.random_forest_model_result.task_kind != "classification":
+                        excluded_models.append(f"{source_node.label}(回归任务)")
+                        continue
+                    model_type = "random-forest"
+                    predictors = source_ctx.random_forest_model_result.predictor_variables
+                elif source_node.module_id == "xgboost" and source_ctx.xgboost_model_result:
+                    if source_ctx.xgboost_model_result.task_kind != "classification":
+                        excluded_models.append(f"{source_node.label}(回归任务)")
+                        continue
+                    model_type = "xgboost"
+                    predictors = source_ctx.xgboost_model_result.predictor_variables
+
+                if not model_type or not predictors:
+                    continue
+
+                specs.append(
+                    {
+                        "name": _unique_name(source_node.label),
+                        "model_type": model_type,
+                        "predictors": predictors,
+                        "params": dict(source_node.values),
+                    }
+                )
+
+            if len(specs) < 2:
+                node_results.append(
+                    PipelineNodeStatusData(
+                        node_id=node.id,
+                        module_id=node.module_id,
+                        label=node.label,
+                        stage_id=node.stage_id,
+                        status="skipped",
+                        message="模型比较至少需要 2 个二分类模型上游输入",
+                        details=[f"已识别可比较模型: {len(specs)}"] + ([f"已排除: {', '.join(excluded_models)}"] if excluded_models else []),
+                    )
+                )
+                continue
+
+            test_df = context.holdout_frames.get("测试集")
+            comparison_result: ModelComparisonExecutionResult = run_model_comparison_delong(
+                train_df=context.df,
+                test_df=test_df,
+                dataset_name=dataset_name,
+                outcome_variable=outcome_variable,
+                model_specs=specs,
+                predictor_kind_overrides=context.kind_overrides,
+            )
+
+            auc_columns = ["dataset", "model", "model_type", "sample_size", "event_count", "auc"]
+            auc_rows = [
+                [row.dataset, row.model, row.model_type, row.sample_size, row.event_count, row.auc]
+                for row in comparison_result.auc_rows
             ]
-            status = "configured" if upstream_models else "skipped"
-            message = "模型比较节点已记录，待多模型比较引擎接入" if upstream_models else "当前无上游模型结果，模型比较节点未执行"
+            delong_columns = ["dataset", "model_a", "model_b", "sample_size", "auc_a", "auc_b", "delta_auc", "z_value", "p_value", "method"]
+            delong_rows = [
+                [row.dataset, row.model_a, row.model_b, row.sample_size, row.auc_a, row.auc_b, row.delta_auc, row.z_value, row.p_value, row.method]
+                for row in comparison_result.delong_rows
+            ]
+
+            details = [
+                f"比较模型数: {len(specs)}",
+                f"包含测试集: {'是' if comparison_result.has_test else '否'}",
+            ]
+            if excluded_models:
+                details.append(f"已排除: {', '.join(excluded_models)}")
+
             node_results.append(
                 PipelineNodeStatusData(
                     node_id=node.id,
                     module_id=node.module_id,
                     label=node.label,
                     stage_id=node.stage_id,
-                    status=status,
-                    message=message,
-                    details=[f"上游模型数: {len(upstream_models)}"],
+                    status="completed",
+                    message="模型比较已完成（ROC DeLong 检验）",
+                    details=details,
+                    input_snapshot={
+                        "models": [item["name"] for item in specs],
+                        "outcome_variable": outcome_variable,
+                        "has_test_set": bool(test_df is not None and not test_df.empty),
+                    },
+                    output_summary={
+                        "model_count": len(specs),
+                        "has_test": comparison_result.has_test,
+                    },
+                    output_tables=[
+                        {"name": "model_auc_summary", "columns": auc_columns, "rows": auc_rows},
+                        {"name": "delong_test", "columns": delong_columns, "rows": delong_rows},
+                    ],
+                    output_plots=_plots_to_output_payload(comparison_result.plots),
+                    artifacts=[
+                        _artifact_from_bytes(
+                            artifact_type="table",
+                            name="模型 AUC 汇总表",
+                            filename=f"{dataset_name}_model_auc_summary.csv",
+                            media_type="text/csv",
+                            content=_table_csv_bytes(auc_columns, auc_rows),
+                        ),
+                        _artifact_from_bytes(
+                            artifact_type="table",
+                            name="DeLong 检验结果表",
+                            filename=f"{dataset_name}_model_delong_test.csv",
+                            media_type="text/csv",
+                            content=_table_csv_bytes(delong_columns, delong_rows),
+                        ),
+                        *_plots_to_artifacts(comparison_result.plots),
+                    ],
+                    logs=[comparison_result.note],
+                    next_variable_set=context.predictors,
                 )
             )
         elif node.module_id in {"roc", "calibration", "dca", "bootstrap", "nomogram"}:

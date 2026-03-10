@@ -125,3 +125,77 @@ class ClinicalPipelineNodeDetailResponse(ClinicalPipelineNodeResult):
     run_id: str
     execution_order: int
     created_at: str
+
+
+class SavedClinicalWorkflowNode(BaseModel):
+    id: str
+    module_id: str
+    label: str
+    description: str | None = None
+    stage_id: str
+    values: dict[str, str] = Field(default_factory=dict)
+    x: float = 0
+    y: float = 0
+    order: int = 0
+
+
+class SavedClinicalWorkflowConnection(BaseModel):
+    id: str
+    from_node_id: str
+    to_node_id: str
+    output_port_id: str | None = None
+
+
+class ClinicalWorkflowSaveRequest(BaseModel):
+    project_id: str
+    name: str
+    description: str | None = None
+    workflow_kind: str | None = None
+    nodes: list[SavedClinicalWorkflowNode] = Field(default_factory=list)
+    connections: list[SavedClinicalWorkflowConnection] = Field(default_factory=list)
+
+
+class ClinicalWorkflowUpdateRequest(BaseModel):
+    name: str
+    description: str | None = None
+    nodes: list[SavedClinicalWorkflowNode] = Field(default_factory=list)
+    connections: list[SavedClinicalWorkflowConnection] = Field(default_factory=list)
+
+
+class ClinicalWorkflowSummaryResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    description: str | None = None
+    workflow_kind: str
+    node_count: int
+    connection_count: int
+    created_at: str
+    updated_at: str
+
+
+class ClinicalWorkflowDetailResponse(ClinicalWorkflowSummaryResponse):
+    nodes: list[SavedClinicalWorkflowNode] = Field(default_factory=list)
+    connections: list[SavedClinicalWorkflowConnection] = Field(default_factory=list)
+
+
+class ClinicalWorkflowValidationIssue(BaseModel):
+    severity: Literal["error", "warning"]
+    code: str
+    message: str
+    node_id: str | None = None
+    connection_id: str | None = None
+
+
+class ClinicalWorkflowValidationRequest(BaseModel):
+    project_id: str
+    workflow_kind: str | None = None
+    nodes: list[SavedClinicalWorkflowNode] = Field(default_factory=list)
+    connections: list[SavedClinicalWorkflowConnection] = Field(default_factory=list)
+
+
+class ClinicalWorkflowValidationResponse(BaseModel):
+    is_valid: bool
+    issues: list[ClinicalWorkflowValidationIssue] = Field(default_factory=list)
+    root_node_ids: list[str] = Field(default_factory=list)
+    leaf_node_ids: list[str] = Field(default_factory=list)

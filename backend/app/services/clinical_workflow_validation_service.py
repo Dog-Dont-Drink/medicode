@@ -33,7 +33,7 @@ MODULE_STAGE: dict[str, StageId] = {
     "rf-importance": "feature-processing",
     "boruta-selection": "feature-processing",
     "feature-merge": "feature-processing",
-    "rcs": "feature-processing",
+    "rcs": "model-validation",
     "interaction": "feature-processing",
     "logistic-model": "model-development",
     "cox-model": "model-development",
@@ -185,6 +185,9 @@ def _validate_connection(
 
     if target.stage_id == "model-validation" and source.stage_id != "model-development":
         return "验证类节点只能接在模型开发节点后面。"
+
+    if target.module_id == "rcs" and source.module_id not in {"logistic-model", "cox-model"}:
+        return "限制性立方样条只能接在 Logistic 或 Cox 模型后面。"
 
     if target.module_id == "nomogram" and source.module_id not in {"logistic-model", "cox-model"}:
         return "列线图只能接在 Logistic 或 Cox 模型后面。"

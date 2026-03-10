@@ -373,6 +373,60 @@ class RocValidationExecutionResult:
 
 
 @dataclass
+class ModelComparisonAucData:
+    dataset: str
+    model: str
+    model_type: str
+    sample_size: int
+    event_count: int
+    auc: float | None
+
+
+@dataclass
+class ModelComparisonDelongRowData:
+    dataset: str
+    model_a: str
+    model_b: str
+    sample_size: int
+    auc_a: float | None
+    auc_b: float | None
+    delta_auc: float | None
+    z_value: float | None
+    p_value: float | None
+    method: str
+
+
+@dataclass
+class ModelComparisonExecutionResult:
+    dataset_name: str
+    has_test: bool
+    auc_rows: list[ModelComparisonAucData]
+    delong_rows: list[ModelComparisonDelongRowData]
+    note: str
+    script_r: str
+    plots: list[LassoPlotData]
+
+
+@dataclass
+class RcsTransformExecutionResult:
+    dataset_name: str
+    template_kind: Literal["binary", "survival"]
+    target: str
+    knots_count: int
+    knots_values: list[float]
+    basis_columns: list[str]
+    has_test: bool
+    p_overall: float | None
+    p_nonlinear: float | None
+    note: str
+    script_r: str
+    plots: list[LassoPlotData]
+    transformed_df: pd.DataFrame
+    transformed_test_df: pd.DataFrame | None
+    csv_content: bytes
+
+
+@dataclass
 class CalibrationMetricsData:
     c_index: float | None
     dxy: float | None
@@ -645,6 +699,50 @@ def _payload_regression_metric_rows(value: object) -> list[RegressionModelMetric
                 rmse=_to_float(row[2]),
                 mae=_to_float(row[3]),
                 r_squared=_to_float(row[4]),
+            )
+        )
+    return rows
+
+
+def _payload_model_comparison_auc_rows(value: object) -> list[ModelComparisonAucData]:
+    rows: list[ModelComparisonAucData] = []
+    if not isinstance(value, list):
+        return rows
+    for row in value:
+        if not isinstance(row, (list, tuple)) or len(row) < 6:
+            continue
+        rows.append(
+            ModelComparisonAucData(
+                dataset=str(row[0]),
+                model=str(row[1]),
+                model_type=str(row[2]),
+                sample_size=_to_int(row[3]),
+                event_count=_to_int(row[4]),
+                auc=_to_float(row[5]),
+            )
+        )
+    return rows
+
+
+def _payload_model_comparison_delong_rows(value: object) -> list[ModelComparisonDelongRowData]:
+    rows: list[ModelComparisonDelongRowData] = []
+    if not isinstance(value, list):
+        return rows
+    for row in value:
+        if not isinstance(row, (list, tuple)) or len(row) < 10:
+            continue
+        rows.append(
+            ModelComparisonDelongRowData(
+                dataset=str(row[0]),
+                model_a=str(row[1]),
+                model_b=str(row[2]),
+                sample_size=_to_int(row[3]),
+                auc_a=_to_float(row[4]),
+                auc_b=_to_float(row[5]),
+                delta_auc=_to_float(row[6]),
+                z_value=_to_float(row[7]),
+                p_value=_to_float(row[8]),
+                method=str(row[9] or "DeLong"),
             )
         )
     return rows
@@ -1719,6 +1817,198 @@ def run_roc_validation(
         test_f1=_to_float(payload.get('test_f1')),
         test_brier_score=_to_float(payload.get('test_brier_score')),
         note=str(payload.get('note') or ''),
+        script_r=script,
+        plots=plots,
+    )
+
+
+def run_rcs_transform(
+    *,
+    train_df: pd.DataFrame,
+    dataset_name: str,
+    template_kind: Literal["binary", "survival"],
+    target: str,
+    knots_count: int,
+    outcome_variable: str | None = None,
+    time_variable: str | None = None,
+    event_variable: str | None = None,
+    test_df: pd.DataFrame | None = None,
+) -> RcsTransformExecutionResult:
+    normalized_target = str(target or "").strip()
+    if not normalized_target:
+        raise BadRequest("限制性立方样条缺少目标变量")
+    if normalized_target not in train_df.columns:
+        raise BadRequest("目标变量不在数据集中")
+
+    normalized_knots = int(knots_count)
+    if normalized_knots not in {3, 4, 5}:
+        raise BadRequest("节点数仅支持 3/4/5")
+
+    required_columns: list[str] = [normalized_target]
+    if template_kind == "binary":
+        if not outcome_variable:
+            raise BadRequest("二分类模板缺少结局变量，无法计算 RCS 效应")
+        required_columns.append(outcome_variable)
+    else:
+        if not time_variable or not event_variable:
+            raise BadRequest("生存模板缺少时间/事件变量，无法计算 RCS 效应")
+        required_columns.extend([time_variable, event_variable])
+
+    _sanitize_columns(train_df, required_columns)
+    prepared_train = train_df.copy()
+    prepared_test: pd.DataFrame | None = None
+    if test_df is not None and not test_df.empty:
+        # test may be missing outcome/time/event; allow R script to decide whether to keep it.
+        _sanitize_columns(test_df, [col for col in required_columns if col in test_df.columns])
+        prepared_test = test_df.copy()
+
+    with tempfile.TemporaryDirectory(prefix="medicode-rcs-") as temp_dir:
+        temp_path = Path(temp_dir)
+        train_csv_path = _write_dataframe(prepared_train, temp_path, "rcs_train.csv")
+        test_csv_arg = "NA"
+        if prepared_test is not None:
+            test_csv_arg = _write_dataframe(prepared_test, temp_path, "rcs_test.csv").as_posix()
+        output_train_csv = temp_path / "rcs_train_out.csv"
+        output_test_csv = temp_path / "rcs_test_out.csv"
+        output_json = temp_path / "rcs_output.json"
+        plot_path = temp_path / "rcs_effect.png"
+        plot_pdf_path = temp_path / "rcs_effect.pdf"
+        script = _run_regression_script(
+            "rcs_transform.R",
+            [
+                train_csv_path.as_posix(),
+                test_csv_arg,
+                output_train_csv.as_posix(),
+                output_test_csv.as_posix(),
+                output_json.as_posix(),
+                plot_path.as_posix(),
+                plot_pdf_path.as_posix(),
+                dataset_name,
+                template_kind,
+                outcome_variable or "NA",
+                time_variable or "NA",
+                event_variable or "NA",
+                normalized_target,
+                str(int(normalized_knots)),
+            ],
+            "R 限制性立方样条执行失败",
+        )
+        payload = _read_json(output_json)
+        train_bytes = output_train_csv.read_bytes()
+        transformed_df = load_tabular_dataframe(train_bytes, ".csv")
+        transformed_test_df: pd.DataFrame | None = None
+        has_test = bool(payload.get("has_test"))
+        if has_test and output_test_csv.exists():
+            transformed_test_df = load_tabular_dataframe(output_test_csv.read_bytes(), ".csv")
+
+        plots = [_encode_plot(plot_path, "Restricted Cubic Spline", plot_pdf_path)] if plot_path.exists() else []
+
+    return RcsTransformExecutionResult(
+        dataset_name=str(payload.get("dataset_name") or dataset_name),
+        template_kind=template_kind,
+        target=str(payload.get("target") or normalized_target),
+        knots_count=_to_int(payload.get("knots_count")) or normalized_knots,
+        knots_values=[float(x) for x in (payload.get("knots_values") or [])],
+        basis_columns=_payload_str_list(payload.get("basis_columns")),
+        has_test=bool(payload.get("has_test")),
+        p_overall=_to_float(payload.get("p_overall")),
+        p_nonlinear=_to_float(payload.get("p_nonlinear")),
+        note=str(payload.get("note") or ""),
+        script_r=script,
+        plots=plots,
+        transformed_df=transformed_df,
+        transformed_test_df=transformed_test_df,
+        csv_content=train_bytes,
+    )
+
+
+def run_model_comparison_delong(
+    train_df: pd.DataFrame,
+    dataset_name: str,
+    outcome_variable: str,
+    model_specs: list[dict[str, object]],
+    test_df: pd.DataFrame | None = None,
+    predictor_kind_overrides: dict[str, str] | None = None,
+) -> ModelComparisonExecutionResult:
+    if not model_specs or len(model_specs) < 2:
+        raise BadRequest("模型比较至少需要 2 个上游模型输入")
+
+    normalized_specs: list[dict[str, object]] = []
+    union_predictors: list[str] = []
+    for spec in model_specs:
+        name = str(spec.get("name") or "").strip()
+        model_type = str(spec.get("model_type") or "").strip()
+        predictors = _payload_str_list(spec.get("predictors"))
+        params = spec.get("params") if isinstance(spec.get("params"), dict) else {}
+        if not name or not model_type or not predictors:
+            continue
+        normalized_specs.append(
+            {
+                "name": name,
+                "model_type": model_type,
+                "predictors": predictors,
+                "params": params,
+            }
+        )
+        union_predictors.extend(predictors)
+
+    if len(normalized_specs) < 2:
+        raise BadRequest("模型比较至少需要 2 个可用的二分类模型（需包含名称/类型/自变量）")
+
+    union_predictors = _normalize_str_list(union_predictors)
+    required_columns = [outcome_variable, *union_predictors]
+    _sanitize_columns(train_df, required_columns)
+    prepared_train = _clean_dataframe(train_df, required_columns)
+    prepared_test: pd.DataFrame | None = None
+    if test_df is not None and not test_df.empty:
+        _sanitize_columns(test_df, required_columns)
+        prepared_test = _clean_dataframe(test_df, required_columns)
+
+    categorical_predictors = _resolve_categorical_predictors(prepared_train, union_predictors, predictor_kind_overrides)
+
+    with tempfile.TemporaryDirectory(prefix="medicode-model-compare-") as temp_dir:
+        temp_path = Path(temp_dir)
+        train_csv_path = _write_dataframe(prepared_train, temp_path, "model_compare_train.csv")
+        test_csv_arg = "NA"
+        if prepared_test is not None:
+            test_csv_arg = _write_dataframe(prepared_test, temp_path, "model_compare_test.csv").as_posix()
+        output_path = temp_path / "model_compare_output.json"
+        train_plot_path = temp_path / "model_compare_train_roc.png"
+        train_plot_pdf_path = temp_path / "model_compare_train_roc.pdf"
+        test_plot_path = temp_path / "model_compare_test_roc.png"
+        test_plot_pdf_path = temp_path / "model_compare_test_roc.pdf"
+        script = _run_regression_script(
+            "model_comparison_delong.R",
+            [
+                train_csv_path.as_posix(),
+                test_csv_arg,
+                output_path.as_posix(),
+                train_plot_path.as_posix(),
+                train_plot_pdf_path.as_posix(),
+                test_plot_path.as_posix(),
+                test_plot_pdf_path.as_posix(),
+                dataset_name,
+                outcome_variable,
+                _json_arg(normalized_specs),
+                _json_arg(categorical_predictors),
+            ],
+            "R 模型比较（DeLong）执行失败",
+        )
+        payload = _read_json(output_path)
+        plots: list[LassoPlotData] = []
+        if train_plot_path.exists():
+            plots.append(_encode_plot(train_plot_path, "ROC Curve (Train)", train_plot_pdf_path))
+        if test_plot_path.exists():
+            plots.append(_encode_plot(test_plot_path, "ROC Curve (Test)", test_plot_pdf_path))
+
+    auc_rows = _payload_model_comparison_auc_rows(payload.get("auc_rows"))
+    delong_rows = _payload_model_comparison_delong_rows(payload.get("delong_rows"))
+    return ModelComparisonExecutionResult(
+        dataset_name=str(payload.get("dataset_name") or dataset_name),
+        has_test=bool(payload.get("has_test")),
+        auc_rows=auc_rows,
+        delong_rows=delong_rows,
+        note=str(payload.get("note") or ""),
         script_r=script,
         plots=plots,
     )

@@ -182,27 +182,20 @@ def _handle_outliers(
     return df.loc[~mask].reset_index(drop=True), removed_rows
 
 
-def _multiple_impute_numeric(series: pd.Series, rng: np.random.Generator) -> pd.Series:
-    non_null = series.dropna().astype(float)
+def _multiple_impute_numeric(series: pd.Series) -> pd.Series:
+    non_null = series.dropna()
     if non_null.empty:
-        return series.fillna(0)
-
-    mean = float(non_null.mean())
-    std = float(non_null.std()) if non_null.shape[0] > 1 else 0.0
-    lower = float(non_null.min())
-    upper = float(non_null.max())
-
-    next_series = series.copy()
-    missing_index = next_series[next_series.isna()].index
-    if std == 0:
-        next_series.loc[missing_index] = mean
-        return next_series
-
-    for idx in missing_index:
-        draws = rng.normal(loc=mean, scale=std, size=5)
-        clipped = np.clip(draws, lower, upper)
-        next_series.at[idx] = float(np.mean(clipped))
-    return next_series
+        return series
+    mu = non_null.mean()
+    sigma = non_null.std(ddof=1)
+    if pd.isna(sigma) or sigma == 0:
+        return series.fillna(mu)
+    rng = np.random.default_rng(seed=42)
+    mask = series.isna()
+    imputed_values = rng.normal(loc=mu, scale=sigma, size=int(mask.sum()))
+    result = series.copy()
+    result.loc[mask] = imputed_values
+    return result
 
 
 def _fill_numeric_missing(
@@ -220,7 +213,6 @@ def _fill_numeric_missing(
     if missing_cells == 0:
         return next_df, 0
 
-    rng = np.random.default_rng(42)
     for column in numeric_columns:
         series = next_df[column]
         if not series.isna().any():
@@ -231,8 +223,8 @@ def _fill_numeric_missing(
         elif strategy == "median":
             value = series.dropna().median()
             next_df[column] = series.fillna(value)
-        else:
-            next_df[column] = _multiple_impute_numeric(series, rng)
+        elif strategy == "multiple_imputation":
+            next_df[column] = _multiple_impute_numeric(series)
 
     labels = {
         "mean": "均值填补",
@@ -396,11 +388,11 @@ def clean_dataset_content(
         operations,
     )
 
-    categorical_missing_columns = _resolve_runtime_columns(next_df, selected_categorical_missing_columns, categorical_columns)
+    categorical_missing_columns_resolved = _resolve_runtime_columns(next_df, selected_categorical_missing_columns, categorical_columns)
     next_df, categorical_imputed_cells = _fill_categorical_missing(
         next_df,
         payload.categorical_missing_strategy,
-        categorical_missing_columns,
+        categorical_missing_columns_resolved,
         operations,
     )
 

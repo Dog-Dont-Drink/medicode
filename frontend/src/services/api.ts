@@ -1030,6 +1030,16 @@ export async function createProject(data: any) {
     return res.data
 }
 
+export async function updateProject(projectId: string, data: { name?: string; description?: string; status?: string }) {
+    const res = await apiClient.put(`/api/v1/projects/${projectId}`, data)
+    return res.data
+}
+
+export async function deleteProject(projectId: string) {
+    const res = await apiClient.delete(`/api/v1/projects/${projectId}`)
+    return res.data
+}
+
 // ========================
 // Datasets API
 // ========================
@@ -1163,9 +1173,9 @@ export async function downloadClinicalPipelineArtifact(artifactId: string) {
     }
 }
 
-export async function listClinicalWorkflows(projectId: string) {
+export async function listClinicalWorkflows(projectId: string, workflowKind?: string) {
     const res = await apiClient.get('/api/v1/advanced-analysis/workflows', {
-        params: { project_id: projectId },
+        params: { project_id: projectId, workflow_kind: workflowKind || undefined },
     })
     return res.data as ClinicalWorkflowSummaryResponse[]
 }
@@ -1238,6 +1248,120 @@ export async function downloadLassoPlotPdf(data: LassoPlotPdfExportRequest) {
         remainingResources: Number(res.headers['x-resource-balance'] || '') || null,
         chargedResources: Number(res.headers['x-resource-charge'] || '') || null,
     } as PdfDownloadResponse
+}
+
+// ========================
+// Writing polish (grammar)
+// ========================
+
+export type PolishTextType = 'sentence' | 'paragraph' | 'full'
+export type PolishSectionType = 'Abstract' | 'Introduction' | 'Methods' | 'Results' | 'Discussion' | 'Other'
+export type PolishStrength = 'conservative' | 'standard' | 'deep'
+
+export interface GrammarDocumentCreateRequest {
+    title: string
+    raw_text: string
+    text_type: PolishTextType
+    section_type: PolishSectionType
+}
+
+export interface GrammarVersion {
+    id: string
+    version_no: number
+    source_module: string
+    settings?: Record<string, unknown> | null
+    model?: string | null
+    llm_tokens_used: number
+    created_at: string
+}
+
+export interface GrammarDocumentDetail {
+    id: string
+    title: string
+    raw_text: string
+    text_type: PolishTextType
+    section_type: PolishSectionType
+    versions: GrammarVersion[]
+}
+
+export interface GrammarEdit {
+    id: string
+    sentence_index: number
+    original_text: string
+    revised_text: string
+    edit_types: string[]
+    reasons: string[]
+    confidence: number | null
+    changed: boolean
+    accepted: boolean | null
+}
+
+export interface GrammarPolishRequest {
+    raw_text: string
+    text_type: PolishTextType
+    section_type: PolishSectionType
+    strength: PolishStrength
+    protect_terms: boolean
+    preserve_structure: boolean
+}
+
+export interface GrammarPolishResponse {
+    document_id: string
+    version: GrammarVersion
+    revised_text: string
+    edits: GrammarEdit[]
+    summary: Record<string, unknown>
+    charged_resources: number
+    charged_tokens: number
+    resource_balance: number | null
+}
+
+export async function createGrammarDocument(data: GrammarDocumentCreateRequest) {
+    const res = await apiClient.post('/api/v1/polish/grammar/documents', data)
+    return res.data as GrammarDocumentDetail
+}
+
+export async function getGrammarDocument(documentId: string) {
+    const res = await apiClient.get(`/api/v1/polish/grammar/documents/${documentId}`)
+    return res.data as GrammarDocumentDetail
+}
+
+export async function runGrammarPolish(documentId: string, data: GrammarPolishRequest) {
+    const res = await apiClient.post(`/api/v1/polish/grammar/documents/${documentId}/polish`, data)
+    return res.data as GrammarPolishResponse
+}
+
+export async function getGrammarVersion(documentId: string, versionNo: number) {
+    const res = await apiClient.get(`/api/v1/polish/grammar/documents/${documentId}/versions/${versionNo}`)
+    return res.data as GrammarPolishResponse
+}
+
+export async function decideGrammarEdit(editId: string, accepted: boolean) {
+    const res = await apiClient.patch(`/api/v1/polish/grammar/edits/${editId}`, { accepted })
+    return res.data as GrammarEdit
+}
+
+export async function parseGrammarUpload(file: File) {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await apiClient.post('/api/v1/polish/grammar/parse-upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data as { filename: string; text: string }
+}
+
+export async function exportGrammarDocument(
+    documentId: string,
+    versionNo: number,
+    fmt: 'docx' | 'md' | 'txt',
+    applyAcceptance = true,
+) {
+    const res = await apiClient.post(`/api/v1/polish/grammar/documents/${documentId}/export`, null, {
+        params: { version_no: versionNo, fmt, apply_acceptance: applyAcceptance },
+        responseType: 'blob',
+    })
+    const contentDisposition = res.headers['content-disposition'] as string | undefined
+    return { blob: res.data as Blob, contentDisposition }
 }
 
 export async function downloadLinearPlotPdf(data: LassoPlotPdfExportRequest) {

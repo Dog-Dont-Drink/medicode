@@ -17,6 +17,7 @@ from app.core.exceptions import BadRequest, Forbidden, NotFound
 from app.db.database import get_db
 from app.db.models.dataset import Dataset
 from app.db.models.project import Project
+from app.db.models.project_workflow import ProjectWorkflow
 from app.db.models.user import User
 from app.db.models.workflow_run import WorkflowArtifact, WorkflowRun, WorkflowRunNode
 from app.schemas.advanced_analysis import (
@@ -28,6 +29,15 @@ from app.schemas.advanced_analysis import (
     ClinicalPipelineRunResponse,
     ClinicalPipelineRunSummaryResponse,
     ClinicalPipelineArtifactResult,
+    ClinicalWorkflowDetailResponse,
+    ClinicalWorkflowSaveRequest,
+    ClinicalWorkflowSummaryResponse,
+    ClinicalWorkflowUpdateRequest,
+    ClinicalWorkflowValidationIssue,
+    ClinicalWorkflowValidationRequest,
+    ClinicalWorkflowValidationResponse,
+    SavedClinicalWorkflowConnection,
+    SavedClinicalWorkflowNode,
 )
 from app.schemas.dataset import ColumnSummaryResponse, DatasetSummaryResponse, ValueFrequencyResponse
 from app.schemas.descriptive import (
@@ -115,6 +125,183 @@ def _validate_or_raise(nodes, connections) -> None:
         return
     errors = [item.message for item in validation.issues if item.severity == "error"]
     raise BadRequest("；".join(errors[:6]))
+
+
+def _workflow_payload(nodes: list[SavedClinicalWorkflowNode], connections: list[SavedClinicalWorkflowConnection]) -> dict:
+    return {
+        "nodes": [node.model_dump() for node in nodes],
+        "connections": [connection.model_dump() for connection in connections],
+    }
+
+
+def _map_workflow_summary(workflow: ProjectWorkflow) -> ClinicalWorkflowSummaryResponse:
+    payload = workflow.payload or {}
+    nodes = payload.get("nodes") or []
+    conns = payload.get("connections") or []
+    return ClinicalWorkflowSummaryResponse(
+        id=str(workflow.id),
+        project_id=str(workflow.project_id),
+        name=workflow.name,
+        description=workflow.description,
+        workflow_kind=workflow.workflow_kind,
+        node_count=len(nodes),
+        connection_count=len(conns),
+        created_at=_utc_isoformat(workflow.created_at) or "",
+        updated_at=_utc_isoformat(workflow.updated_at) or _utc_isoformat(workflow.created_at) or "",
+    )
+
+
+def _map_workflow_detail(workflow: ProjectWorkflow) -> ClinicalWorkflowDetailResponse:
+    summary = _map_workflow_summary(workflow)
+    payload = workflow.payload or {}
+    nodes = payload.get("nodes") or []
+    conns = payload.get("connections") or []
+    return ClinicalWorkflowDetailResponse(
+        **summary.model_dump(),
+        nodes=[SavedClinicalWorkflowNode.model_validate(item) for item in nodes],
+        connections=[SavedClinicalWorkflowConnection.model_validate(item) for item in conns],
+    )
+
+
+async def _get_workflow_for_user(workflow_id: uuid.UUID, current_user: User, db: AsyncSession) -> ProjectWorkflow:
+    result = await db.execute(select(ProjectWorkflow).where(ProjectWorkflow.id == workflow_id))
+    workflow = result.scalar_one_or_none()
+    if not workflow:
+        raise NotFound("流程不存在")
+    if workflow.owner_id != current_user.id:
+        raise Forbidden("无权访问该流程")
+    return workflow
+
+
+@router.get("/workflows", response_model=list[ClinicalWorkflowSummaryResponse])
+async def list_clinical_workflows(
+    project_id: str,
+    workflow_kind: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError as exc:
+        raise BadRequest("project_id 无效") from exc
+
+    await _get_project_for_user(project_uuid, current_user, db)
+    query = select(ProjectWorkflow).where(ProjectWorkflow.project_id == project_uuid, ProjectWorkflow.owner_id == current_user.id)
+    if workflow_kind:
+        query = query.where(ProjectWorkflow.workflow_kind == workflow_kind)
+    query = query.order_by(ProjectWorkflow.updated_at.desc())
+    result = await db.execute(query)
+    workflows = result.scalars().all()
+    return [_map_workflow_summary(item) for item in workflows]
+
+
+@router.get("/workflows/{workflow_id}", response_model=ClinicalWorkflowDetailResponse)
+async def get_clinical_workflow_detail(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        workflow_uuid = uuid.UUID(workflow_id)
+    except ValueError as exc:
+        raise BadRequest("workflow_id 无效") from exc
+    workflow = await _get_workflow_for_user(workflow_uuid, current_user, db)
+    return _map_workflow_detail(workflow)
+
+
+@router.post("/workflows", response_model=ClinicalWorkflowDetailResponse)
+async def save_clinical_workflow(
+    payload: ClinicalWorkflowSaveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        project_uuid = uuid.UUID(payload.project_id)
+    except ValueError as exc:
+        raise BadRequest("project_id 无效") from exc
+    await _get_project_for_user(project_uuid, current_user, db)
+
+    workflow_kind = payload.workflow_kind or "clinical_prediction"
+    workflow = ProjectWorkflow(
+        project_id=project_uuid,
+        owner_id=current_user.id,
+        name=payload.name.strip() or "Untitled",
+        description=payload.description,
+        workflow_kind=workflow_kind,
+        payload=_workflow_payload(payload.nodes, payload.connections),
+    )
+    db.add(workflow)
+    await db.commit()
+    await db.refresh(workflow)
+    return _map_workflow_detail(workflow)
+
+
+@router.put("/workflows/{workflow_id}", response_model=ClinicalWorkflowDetailResponse)
+async def update_clinical_workflow(
+    workflow_id: str,
+    payload: ClinicalWorkflowUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        workflow_uuid = uuid.UUID(workflow_id)
+    except ValueError as exc:
+        raise BadRequest("workflow_id 无效") from exc
+    workflow = await _get_workflow_for_user(workflow_uuid, current_user, db)
+
+    workflow.name = payload.name.strip() or workflow.name
+    workflow.description = payload.description
+    workflow.payload = _workflow_payload(payload.nodes, payload.connections)
+    await db.commit()
+    await db.refresh(workflow)
+    return _map_workflow_detail(workflow)
+
+
+@router.delete("/workflows/{workflow_id}")
+async def delete_clinical_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        workflow_uuid = uuid.UUID(workflow_id)
+    except ValueError as exc:
+        raise BadRequest("workflow_id 无效") from exc
+    workflow = await _get_workflow_for_user(workflow_uuid, current_user, db)
+    await db.delete(workflow)
+    await db.commit()
+    return {"success": True}
+
+
+@router.post("/workflows/validate", response_model=ClinicalWorkflowValidationResponse)
+async def validate_saved_workflow(
+    payload: ClinicalWorkflowValidationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        project_uuid = uuid.UUID(payload.project_id)
+    except ValueError as exc:
+        raise BadRequest("project_id 无效") from exc
+    await _get_project_for_user(project_uuid, current_user, db)
+
+    validation = validate_clinical_workflow(payload.nodes, payload.connections)
+    issues = [
+        ClinicalWorkflowValidationIssue(
+            severity=item.severity,
+            code=item.code,
+            message=item.message,
+            node_id=item.node_id,
+            connection_id=item.connection_id,
+        )
+        for item in (validation.issues or [])
+    ]
+    return ClinicalWorkflowValidationResponse(
+        is_valid=validation.is_valid,
+        issues=issues,
+        root_node_ids=validation.root_node_ids,
+        leaf_node_ids=validation.leaf_node_ids,
+    )
 
 
 def _map_summary(summary) -> DatasetSummaryResponse:

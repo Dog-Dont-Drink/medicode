@@ -52,7 +52,6 @@ const routes: RouteRecordRaw[] = [
             // Data management
             { path: 'data', name: 'DataUpload', component: () => import('@/views/data/DataView.vue'), meta: { requiresAuth: true } },
             { path: 'data/cleaning', name: 'DataCleaning', component: () => import('@/views/data/DataCleaningView.vue'), meta: { requiresAuth: true } },
-            { path: 'data/dictionary', name: 'DataDictionary', component: () => import('@/views/data/DataDictionaryView.vue'), meta: { requiresAuth: true } },
 
             // Analysis
             { path: 'analysis', name: 'AnalysisList', component: () => import('@/views/analysis/AnalysisListView.vue'), meta: { requiresAuth: true } },
@@ -66,6 +65,10 @@ const routes: RouteRecordRaw[] = [
             { path: 'analysis/clinical-model-builder', name: 'ClinicalModelBuilder', component: () => import('@/views/analysis/ClinicalModelWorkbenchView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/repeated-measures-anova', name: 'RepeatedMeasuresAnova', component: () => import('@/views/analysis/RepeatedMeasuresAnovaView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/chi-square', name: 'ChiSquare', component: () => import('@/views/analysis/ChiSquareView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/polish/grammar', name: 'PolishGrammar', component: () => import('@/views/analysis/polish/PolishGrammarView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/polish/manuscript', name: 'PolishManuscript', component: () => import('@/views/analysis/polish/PolishManuscriptView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/polish/background', name: 'PolishBackground', component: () => import('@/views/analysis/polish/PolishBackgroundView.vue'), meta: { requiresAuth: true } },
+            { path: 'analysis/polish/discussion', name: 'PolishDiscussion', component: () => import('@/views/analysis/polish/PolishDiscussionView.vue'), meta: { requiresAuth: true } },
             { path: 'analysis/new', name: 'AnalysisCreate', component: () => import('@/views/analysis/AnalysisCreateView.vue'), meta: { requiresAuth: true } },
 
             // Reports
